@@ -1,0 +1,201 @@
+.fms {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.fms-etiqueta {
+  font-size: 12px;
+  color: #475569;
+  min-width: 26px;
+}
+
+.fms-boton {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+}
+.fms-boton:hover { border-color: var(--hud-navy); }
+
+/* Modal centrado: más cómodo que un dropdown angosto con muchas opciones
+   (EF/MG/tipos de instalación pueden ser decenas) — evita además el scroll
+   anidado dentro del panel de filtros. */
+.fms-fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.fms-modal {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid var(--hud-border);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+}
+
+.fms-modal-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+.fms-modal-resumen {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.fms-cerrar {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+}
+.fms-cerrar:hover { color: #0f172a; }
+
+.fms-buscar {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 13px;
+  margin-bottom: 8px;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.fms-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  font-size: 13px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fms-item:hover { background: #f1f5f9; }
+.fms-item input { cursor: pointer; flex: 0 0 auto; }
+.fms-item-principal {
+  font-weight: 700;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 6px;
+  padding-bottom: 8px;
+}
+
+/* Grid multi-columna: aprovecha el ancho del modal para volúmenes grandes
+   de opciones en vez de una lista angosta de una sola columna. */
+.fms-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 2px 6px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.fms-vacio {
+  grid-column: 1 / -1;
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 10px 4px;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Agrupación por campo: el encabezado ocupa todo el ancho del grid y cada
+   grupo trae su propio grid interno de opciones. */
+.fms-grupo {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+.fms-grupo:first-child { margin-top: 0; }
+
+.fms-grupo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--hud-navy);
+  border-bottom: 1px solid var(--hud-border);
+  padding: 2px 2px 3px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+}
+.fms-grupo-titulo:hover { background: var(--hud-bg-soft); }
+
+.fms-grupo-flecha {
+  font-size: 9px;
+  color: var(--hud-muted);
+  width: 10px;
+  flex: 0 0 auto;
+}
+.fms-grupo-n {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--hud-muted);
+  background: var(--hud-bg-soft);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+
+.fms-grupo-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 2px 6px;
+}
+
+.fms-modal-pie {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+.fms-listo {
+  border: 1px solid var(--hud-navy);
+  background: var(--hud-navy);
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fms-listo:hover { background: var(--hud-navy-dark); }

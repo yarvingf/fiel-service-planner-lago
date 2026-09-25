@@ -1,0 +1,187 @@
+/* Consola de mando: barra fija inferior, acoplada al borde del mapa. */
+.panel-asignacion {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 560px;
+  max-width: 900px;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 8px 16px;
+  z-index: 10;
+  font-size: 13px;
+  color: var(--hud-text);
+  box-shadow: var(--hud-shadow);
+}
+
+.pa-etiqueta {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hud-muted);
+}
+
+.pa-sin-cuadrillas {
+  font-size: 12px;
+  color: var(--hud-muted);
+  font-style: italic;
+}
+
+.pa-cuadrillas {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.pa-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid;
+  background: var(--hud-bg);
+  border-radius: 999px;
+  padding: 4px 10px 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pa-chip-punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.pa-chip-activa { box-shadow: 0 0 0 2px rgba(30, 58, 110, 0.18) inset; }
+
+.pa-gestion {
+  border: 1px dashed var(--hud-border);
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--hud-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.pa-gestion:hover { border-color: var(--hud-navy); color: var(--hud-navy); }
+
+.pa-separador {
+  align-self: stretch;
+  width: 1px;
+  background: var(--hud-border);
+}
+
+.pa-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pa-contador {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--hud-muted);
+  white-space: nowrap;
+  min-width: 92px;
+}
+.pa-error {
+  font-size: 11px;
+  font-weight: 600;
+  color: #b91c1c;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pa-boton {
+  border: 1px solid var(--hud-border);
+  background: var(--hud-bg-soft);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hud-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pa-boton:hover:not(:disabled) { background: var(--hud-navy-soft); border-color: var(--hud-navy); }
+.pa-boton:disabled { opacity: 0.4; cursor: default; }
+.pa-asignar { background: var(--hud-navy); border-color: var(--hud-navy); color: #ffffff; }
+.pa-asignar:hover:not(:disabled) { background: var(--hud-navy-dark); border-color: var(--hud-navy-dark); }
+
+/* Modal de conflictos */
+.pa-modal-fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+}
+.pa-modal {
+  background: #fff;
+  color: #0f172a;
+  border-radius: 12px;
+  padding: 18px 20px;
+  width: 440px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+  font-size: 13px;
+}
+.pa-modal-titulo { font-weight: 700; margin-bottom: 8px; }
+
+.pa-modal-acciones-grupo {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pa-modal-acciones-grupo button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  color: #334155;
+}
+
+.pa-modal-lista {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.pa-modal-lista li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12px;
+}
+.pa-modal-codigo { font-weight: 700; min-width: 80px; }
+.pa-modal-actual { color: #64748b; margin-right: auto; }
+.pa-modal-lista label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.pa-modal-botones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

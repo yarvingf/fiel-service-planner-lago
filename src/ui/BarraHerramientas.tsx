@@ -1,0 +1,137 @@
+import { useMemo, useRef, useState } from 'react'
+import { useDatosStore } from '@/state/datosStore'
+import { HerramientaMenu } from './HerramientaMenu'
+import { CapturaMenu } from './CapturaMenu'
+import { mapaInstancia } from '@/map/mapaInstancia'
+import { exportarAlertasExcel } from '@/data/exportarAlertas'
+import { NOMBRES_TIPO_INSTALACION } from '@/domain/instalacion'
+import './BarraHerramientas.css'
+
+const norm = (s: string) => s.toUpperCase().replace(/[\s\-_]+/g, '')
+
+interface Resultado {
+  kind: 'pozo' | 'instalacion'
+  id: string
+  codigo: string
+  detalle: string
+  lon: number
+  lat: number
+}
+
+/** Prioridad: código exacto > empieza igual > contiene > campos asociados. */
+function puntaje(q: string, codigo: string, extra: string): number {
+  const c = norm(codigo)
+  if (c === q) return 4
+  if (c.startsWith(q)) return 3
+  if (c.includes(q)) return 2
+  if (extra.toUpperCase().includes(q.toUpperCase())) return 1
+  return 0
+}
+
+export function BarraHerramientas() {
+  const { pozos, instalaciones, alertas, cargando, cargarDesdeArchivo, seleccionar } = useDatosStore()
+  const [query, setQuery] = useState('')
+  const inputArchivo = useRef<HTMLInputElement>(null)
+  const instPorId = useMemo(() => new Map(instalaciones.map((i) => [i.id, i])), [instalaciones])
+
+  const resultados = useMemo<Resultado[]>(() => {
+    const q = norm(query.trim())
+    if (q.length < 2) return []
+    const hits: { r: Resultado; p: number }[] = []
+    for (const p of pozos) {
+      if (p.reemplazado || p.lat === null || p.lon === null) continue
+      const ef = (p.efId && instPorId.get(p.efId)?.codigo) ?? ''
+      const mg = (p.mgId && instPorId.get(p.mgId)?.codigo) ?? ''
+      const yacs = p.completaciones.map((c) => c.nbYacimiento).join(' ')
+      const pts = puntaje(q, p.codigo, `${ef} ${mg} ${yacs}`)
+      if (pts > 0) {
+        hits.push({
+          p: pts,
+          r: { kind: 'pozo', id: p.id, codigo: p.codigo, detalle: `Campo ${p.campo} · ${ef || 'sin EF'} · ${mg || 'sin MG'}`, lon: p.lon, lat: p.lat },
+        })
+      }
+    }
+    for (const i of instalaciones) {
+      if (i.lat === null || i.lon === null) continue
+      const pts = puntaje(q, i.codigo, `${i.tipo} ${NOMBRES_TIPO_INSTALACION[i.tipo] ?? ''}`)
+      if (pts > 0) {
+        hits.push({
+          p: pts,
+          r: { kind: 'instalacion', id: i.id, codigo: i.codigo, detalle: `${i.tipo} — ${NOMBRES_TIPO_INSTALACION[i.tipo] ?? ''} · Campo ${i.campo}`, lon: i.lon, lat: i.lat },
+        })
+      }
+    }
+    hits.sort((a, b) => b.p - a.p || a.r.codigo.localeCompare(b.r.codigo))
+    return hits.slice(0, 10).map((h) => h.r)
+  }, [query, pozos, instalaciones, instPorId])
+
+  const irA = (r: Resultado) => {
+    const map = mapaInstancia.current
+    // Solo acercar, nunca alejar: con zoom fijo el vuelo "alejaba" si el
+    // usuario ya estaba más cerca que 14 — se sentía como un salto errático.
+    map?.flyTo({ center: [r.lon, r.lat], zoom: Math.max(map.getZoom(), 14.5), duration: 900 })
+    seleccionar({ kind: r.kind, id: r.id })
+    setQuery('')
+  }
+
+  const alArchivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file) await cargarDesdeArchivo(file)
+  }
+
+  return (
+    <div className="barra-herramientas">
+      <div className="bh-busqueda">
+        <input
+          type="text"
+          value={query}
+          placeholder="Buscar pozo o instalación (BA 345, VLC, EF-BA-17, MG...)"
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && resultados[0]) irA(resultados[0]) }}
+        />
+        {resultados.length > 0 && (
+          <ul className="bh-resultados">
+            {resultados.map((r) => (
+              <li key={`${r.kind}-${r.id}`}>
+                <button type="button" onClick={() => irA(r)}>
+                  <b>{r.codigo}</b>
+                  <span>{r.detalle}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <HerramientaMenu />
+      <CapturaMenu />
+
+      <button
+        type="button"
+        className="bh-boton"
+        disabled={cargando}
+        onClick={() => inputArchivo.current?.click()}
+      >
+        {cargando ? 'Importando…' : 'Importar Excel'}
+      </button>
+      <input
+        ref={inputArchivo}
+        type="file"
+        accept=".xlsx,.csv"
+        hidden
+        onChange={(e) => void alArchivo(e)}
+      />
+
+      <button
+        type="button"
+        className="bh-boton bh-boton-alertas"
+        disabled={alertas.length === 0}
+        title="Descargar reporte de alertas del último import"
+        onClick={() => void exportarAlertasExcel(alertas)}
+      >
+        Alertas ({alertas.length})
+      </button>
+    </div>
+  )
+}

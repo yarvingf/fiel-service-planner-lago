@@ -1,0 +1,148 @@
+/* Panel HUD lateral: blanco, acento azul marino, estilo sobrio. */
+.panel-plan {
+  position: absolute;
+  top: 66px;
+  right: 12px;
+  width: 250px;
+  max-height: calc(100% - 78px);
+  overflow-y: auto;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  border-radius: 6px;
+  box-shadow: var(--hud-shadow);
+  padding: 10px 12px;
+  z-index: 10;
+  font-size: 13px;
+  color: var(--hud-text);
+}
+
+.panel-plan.pp-colapsado {
+  width: auto;
+  padding: 6px 10px;
+}
+
+.pp-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pp-titulo {
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hud-navy);
+}
+
+.pp-toggle {
+  border: none;
+  background: transparent;
+  color: var(--hud-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.pp-toggle:hover { color: var(--hud-navy); }
+
+/* Sin perfil cargado, el primer botón empuja el grupo a la derecha. */
+.pp-header .pp-toggle:nth-child(2) { margin-left: auto; }
+
+.pp-usuario {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--hud-muted);
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-error {
+  margin: 6px 0;
+  font-size: 11px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+.pp-controles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hud-border);
+}
+.pp-fecha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hud-text);
+}
+.pp-fecha input {
+  border: 1px solid var(--hud-border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+  background: #ffffff;
+  color: var(--hud-text);
+}
+.pp-color {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--hud-muted);
+  cursor: pointer;
+}
+
+.pp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+.pp-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--hud-bg-soft);
+  border: 1px solid var(--hud-border);
+  border-radius: 6px;
+  padding: 5px 2px;
+}
+.pp-stat-n { font-size: 15px; font-weight: 700; color: var(--hud-text); line-height: 1.1; }
+.pp-stat-l { font-size: 9px; color: var(--hud-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.pp-stat-destacado { border-color: var(--hud-navy); background: var(--hud-navy-soft); }
+.pp-stat-destacado .pp-stat-n { color: var(--hud-navy); }
+
+/* Desglose de lo asignado por tipo: "Pozos 12 · EF 3 · MG 5". */
+.pp-desglose {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 11px;
+  color: var(--hud-muted);
+  margin: -2px 0 8px;
+}
+.pp-desglose b { color: var(--hud-text); font-weight: 700; }
+
+.pp-detalle {
+  width: 100%;
+  border: 1px solid var(--hud-navy);
+  background: var(--hud-bg);
+  color: var(--hud-navy);
+  border-radius: 6px;
+  padding: 5px 0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.pp-detalle:hover { background: var(--hud-navy); color: #ffffff; }

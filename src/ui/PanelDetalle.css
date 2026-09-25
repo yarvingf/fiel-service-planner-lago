@@ -1,0 +1,135 @@
+/* Inspector de objetivo: dock inferior-izquierdo, arriba de la consola de mando. */
+.panel-detalle {
+  position: absolute;
+  bottom: 74px;
+  left: 12px;
+  width: 320px;
+  max-height: calc(100% - 160px);
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid var(--hud-border);
+  border-radius: 6px;
+  box-shadow: var(--hud-shadow);
+  padding: 12px 14px;
+  z-index: 10;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.pd-cerrar {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: none;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: #64748b;
+}
+.pd-cerrar:hover { color: #0f172a; }
+
+.pd-titulo {
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pd-badge {
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.pd-badge-inst { background: #475569; }
+
+.pd-reemplazo {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.pd-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+}
+.pd-grid span { color: #64748b; }
+.pd-grid b { font-weight: 600; text-align: right; }
+
+.pd-aviso {
+  grid-column: 1 / -1;
+  color: #b45309;
+  font-size: 12px;
+}
+
+.pd-subtitulo {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+  margin: 10px 0 6px;
+}
+
+.pd-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.pd-tabla th {
+  text-align: left;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 3px 4px;
+}
+.pd-tabla td {
+  padding: 3px 4px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+.pd-yac {
+  max-width: 110px;
+  overflow-wrap: anywhere;
+}
+
+.pd-coa {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pd-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pd-chip {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+.pd-vacio { color: #94a3b8; font-size: 12px; }
+
+/* Tooltip del mapa (Popup de MapLibre) */
+.tt { font-size: 12px; line-height: 1.45; color: #0f172a; }
+.tt-titulo { font-weight: 700; font-size: 13px; margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
+.tt-estatus {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.tt-fila { margin-top: 2px; }

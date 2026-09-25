@@ -1,0 +1,321 @@
+/* Modal de detalle del plan: blanco, acento marino, sobrio. */
+.ma-fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.ma-modal {
+  background: #ffffff;
+  color: var(--hud-text);
+  border: 1px solid var(--hud-border);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+  width: min(1240px, 98vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  font-size: 13px;
+}
+
+.ma-titulo {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--hud-navy);
+  margin-bottom: 10px;
+}
+.ma-cerrar {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--hud-muted);
+  cursor: pointer;
+}
+.ma-cerrar:hover { color: var(--hud-text); }
+
+.ma-error {
+  font-size: 11px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+}
+
+/* Barra de "aplicar a selección": copia Actividad/Nota a cualquier combinación
+   de filas marcadas con checkbox, sin importar de qué cuadrilla sean. */
+.ma-barra-multi {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: var(--hud-navy-soft);
+  border: 1px solid var(--hud-navy);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+.ma-n-marcados {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--hud-navy);
+  white-space: nowrap;
+}
+.ma-aplicar-multi {
+  border: 1px solid var(--hud-navy);
+  background: var(--hud-navy);
+  color: #ffffff;
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ma-aplicar-multi:hover { background: var(--hud-navy-dark); }
+.ma-aplicar-multi:disabled { opacity: 0.45; cursor: default; }
+.ma-cancelar-multi {
+  border: none;
+  background: transparent;
+  color: var(--hud-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 4px;
+  white-space: nowrap;
+}
+.ma-cancelar-multi:hover { color: var(--hud-text); }
+
+/* Contenedor de cada grilla AG Grid dentro del grupo (altura automática). */
+.ma-grid { margin-top: 2px; }
+.ma-grid .ma-codigo { width: auto; }
+/* Celda con edición local aún sin aplicar (controles de texto de la grilla). */
+.ma-cell-pendiente { background: #fef3c7 !important; }
+/* Estilo Excel: celda activa con borde verde, rango en azulito, copiado con
+   "marching ants" (borde punteado verde) hasta pegar o Esc. */
+.ma-grid .ag-cell-focus:not(.ag-cell-inline-editing) {
+  outline: 2px solid #217346;
+  outline-offset: -2px;
+}
+.ma-cell-rango { background: #dbeafe !important; }
+.ma-cell-copiada {
+  outline: 2px dashed #217346 !important;
+  outline-offset: -2px;
+}
+
+.ma-cuerpo {
+  overflow-y: auto;
+  flex: 1;
+}
+.ma-vacio {
+  color: var(--hud-muted);
+  font-size: 12px;
+  padding: 14px 4px;
+  text-align: center;
+  font-style: italic;
+}
+
+.ma-grupo { margin-bottom: 10px; }
+.ma-grupo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--hud-border);
+}
+.ma-huerfano { color: var(--hud-muted); }
+.ma-plegar {
+  border: none;
+  background: transparent;
+  color: var(--hud-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.ma-plegar:hover { color: var(--hud-text); }
+.ma-punto {
+  width: 11px;
+  height: 11px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+.ma-n {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--hud-muted);
+  background: var(--hud-bg-soft);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+
+.ma-codigo {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--hud-text);
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 2px 4px;
+  border-radius: 5px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ma-codigo:hover { background: var(--hud-navy-soft); color: var(--hud-navy); }
+
+/* Botones SI/NO del checklist (mismo criterio visual que el Excel exportado). */
+.ma-toggle {
+  width: 100%;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  text-align: center;
+  color: #ffffff;
+}
+.ma-toggle-si { background: #00b050; }
+.ma-toggle-no { background: #c00000; }
+.ma-toggle:disabled { opacity: 0.5; cursor: default; }
+
+/* Marca de "edición local aún sin aplicar" en los toggles SI/NO. */
+.ma-pendiente {
+  outline: 2px solid #d97706;
+  outline-offset: -1px;
+}
+
+/* Última columna de la grilla: copiar + quitar juntos a la derecha. */
+.ma-acciones {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+.ma-copiar {
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 13px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.ma-copiar:hover { color: var(--hud-navy); }
+.ma-copiar:disabled { opacity: 0.4; cursor: default; }
+
+.ma-limpiar-grupo {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--hud-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.ma-limpiar-grupo:hover { color: #dc2626; }
+.ma-limpiar-grupo:disabled { opacity: 0.4; cursor: default; }
+.ma-limpiar-grupo + .ma-n { margin-left: 0; }
+
+/* Inputs de la barra "aplicar a selección" (las celdas de la grilla AG Grid
+   llevan sus propios editores). */
+.ma-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--hud-border);
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: 12px;
+  background: #ffffff;
+  color: var(--hud-text);
+}
+.ma-input-nota { flex: 1; }
+
+/* Input de prioridad en la barra "aplicar a selección". */
+.ma-input-prioridad-multi {
+  max-width: 70px;
+  text-align: right;
+}
+
+.ma-input:focus { outline: none; border-color: var(--hud-navy); }
+.ma-input::placeholder { color: #cbd5e1; }
+.ma-input:disabled { background: var(--hud-bg-soft); }
+
+.ma-quitar {
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 15px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 4px;
+  flex: 0 0 auto;
+}
+.ma-quitar:hover { color: #dc2626; }
+.ma-quitar:disabled { opacity: 0.4; cursor: default; }
+
+.ma-pie {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hud-border);
+}
+.ma-exportar, .ma-whatsapp {
+  border: 1px solid var(--hud-navy);
+  background: #ffffff;
+  color: var(--hud-navy);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ma-exportar { margin-right: auto; }
+.ma-exportar:hover, .ma-whatsapp:hover { background: var(--hud-navy-soft); }
+.ma-exportar:disabled, .ma-whatsapp:disabled { opacity: 0.5; cursor: default; }
+.ma-listo {
+  border: 1px solid var(--hud-navy);
+  background: var(--hud-navy);
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ma-listo:hover { background: var(--hud-navy-dark); }
+
+/* Botón "Aplicar": confirma el lote de ediciones locales — ámbar para que
+   destaque que hay cambios sin guardar. */
+.ma-aplicar {
+  border: 1px solid #b45309;
+  background: #d97706;
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ma-aplicar:hover { background: #b45309; }
+.ma-aplicar:disabled { opacity: 0.55; cursor: default; }
