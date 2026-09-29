@@ -1,10 +1,11 @@
 /* Panel HUD lateral: blanco, acento azul marino, estilo sobrio. */
 .panel-plan {
   position: absolute;
-  top: 66px;
+  /* Debajo del NavigationControl del mapa (ocupa top-right ~64px). */
+  top: 76px;
   right: 12px;
   width: 250px;
-  max-height: calc(100% - 78px);
+  max-height: calc(100% - 150px);
   overflow-y: auto;
   background: var(--hud-bg);
   border: 1px solid var(--hud-border);

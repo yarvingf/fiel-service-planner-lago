@@ -3,6 +3,7 @@ import { ID_CAPA_POZOS, ID_CAPA_INSTALACIONES } from './capasMarcadores'
 import { resaltarLineas } from './resaltado'
 import { calcularDerivadosPozo, type PozoConCompletaciones } from '@/domain/pozo'
 import { NOMBRES_TIPO_INSTALACION, type Instalacion } from '@/domain/instalacion'
+import { ultimaVisitaPorPozo, type VisitaCampo } from '@/domain/visitaCampo'
 import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore, capturaPermite } from '@/state/asignacionesStore'
 
@@ -24,12 +25,14 @@ function fmtFecha(d: Date | null | undefined): string {
 let versionCache = -1
 let pozosPorId = new Map<string, PozoConCompletaciones>()
 let instPorId = new Map<string, Instalacion>()
+let ultimaVisita = new Map<string, VisitaCampo>()
 
 function refrescarCache(): void {
   const s = useDatosStore.getState()
   if (s.versionDatos === versionCache) return
   pozosPorId = new Map(s.pozos.map((p) => [p.id, p]))
   instPorId = new Map(s.instalaciones.map((i) => [i.id, i]))
+  ultimaVisita = ultimaVisitaPorPozo(s.visitas)
   versionCache = s.versionDatos
 }
 
@@ -41,12 +44,19 @@ function htmlPozo(p: PozoConCompletaciones): string {
     .map((c) => c.bnpdFecha?.getTime() ?? 0)
     .reduce((a, b) => Math.max(a, b), 0)
   const color = { Abierto: '#16a34a', Cerrado: '#dc2626', Indeterminado: '#9ca3af' }[d.estatus]
+  // Marcador de antigüedad de visita: "hace N días" o "nunca" si el pozo no
+  // tiene ninguna visita GL/BES registrada.
+  const uv = ultimaVisita.get(p.id)
+  const txtVisita = uv
+    ? `hace <b>${Math.max(0, Math.floor((Date.now() - uv.fecha.getTime()) / 86_400_000))} d</b> · ${fmtFecha(uv.fecha)}`
+    : '<b>nunca</b>'
   return `<div class="tt">
     <div class="tt-titulo">${esc(p.codigo)} <span class="tt-estatus" style="background:${color}">${d.estatus}</span></div>
     <div class="tt-fila">Campo ${esc(p.campo)} · ${esc(d.metodos.join(', ') || '—')} · CAT ${esc(d.categorias.join(', ') || '—')}</div>
     <div class="tt-fila">BNPD activo <b>${fmtNum(d.bnpdActivo)}</b> · Diferido <b>${fmtNum(d.potencialDiferidoConfirmado)}</b>${d.diferidoIncompleto ? ' ⚠ incompleto' : ''}</div>
     <div class="tt-fila">EF ${esc(ef)} · MG ${esc(mg)}</div>
     <div class="tt-fila">Últ. medición ${ultimaFecha ? fmtFecha(new Date(ultimaFecha)) : '—'}</div>
+    <div class="tt-fila">Últ. visita ${txtVisita}</div>
   </div>`
 }
 

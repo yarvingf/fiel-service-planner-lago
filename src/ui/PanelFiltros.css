@@ -1,16 +1,11 @@
+/* El panel vive acoplado dentro del rail izquierdo (.app-rail) — ya no es
+   overlay flotante: ocupa la columna completa y deja el mapa sin colisiones. */
 .panel-filtros {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  width: 240px;
-  max-height: calc(100% - 24px);
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   overflow-y: auto;
-  background: var(--hud-bg);
-  border: 1px solid var(--hud-border);
-  border-radius: 6px;
-  box-shadow: var(--hud-shadow);
-  padding: 10px 12px;
-  z-index: 10;
+  padding: 12px 14px;
   font-size: 13px;
   color: var(--hud-text);
 }
@@ -167,10 +162,13 @@
 }
 .pf-limpiar:hover { background: #f1f5f9; }
 
+/* Colapsado: solo la cabecera con el botón ▸, dentro de la tira de 44px. */
 .panel-filtros.pf-colapsado {
-  width: auto;
-  padding: 8px 10px;
+  padding: 10px 8px;
+  overflow: hidden;
 }
+.panel-filtros.pf-colapsado .pf-header { justify-content: center; }
+.panel-filtros.pf-colapsado .pf-header span { display: none; }
 
 .pf-colapso {
   border: none;

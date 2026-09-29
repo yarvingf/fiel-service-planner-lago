@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
 import { formatearFecha } from '@/domain/fecha'
 import { PanelCuadrillas } from './PanelCuadrillas'
+import { ModalCopiarPlan } from './ModalCopiarPlan'
 import './PanelAsignacion.css'
 
 export function PanelAsignacion() {
@@ -14,6 +15,7 @@ export function PanelAsignacion() {
   } = useAsignacionesStore()
 
   const [modalCuadrillas, setModalCuadrillas] = useState(false)
+  const [modalCopiar, setModalCopiar] = useState(false)
 
   const asignadasHoy = useMemo(
     () => new Set(asignaciones.filter((a) => a.fecha === fecha).map((a) => a.objetivoId)),
@@ -85,6 +87,15 @@ export function PanelAsignacion() {
           >
             Desasignar
           </button>
+          <button
+            type="button"
+            className="pa-boton"
+            title="Traer el plan de otro día como plantilla (revisas antes de aplicar)"
+            disabled={guardando}
+            onClick={() => setModalCopiar(true)}
+          >
+            Copiar plan
+          </button>
           <button type="button" className="pa-boton" disabled={seleccion.length === 0} onClick={() => setSeleccion([])}>
             Limpiar
           </button>
@@ -124,6 +135,7 @@ export function PanelAsignacion() {
       )}
 
       <PanelCuadrillas abierto={modalCuadrillas} onCerrar={() => setModalCuadrillas(false)} />
+      {modalCopiar && <ModalCopiarPlan onCerrar={() => setModalCopiar(false)} />}
     </>
   )
 }

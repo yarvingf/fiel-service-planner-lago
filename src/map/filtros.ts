@@ -53,6 +53,9 @@ export function expresionPozos(f: Filtros, idsAsignados?: ReadonlySet<string> | 
     perteneceA('ef', f.efFiltro),
     perteneceA('mg', f.mgFiltro),
     criterioAsignacion(f, 'pozo|', idsAsignados),
+    // Antigüedad de la última visita: 'diasSinVisita' viene aplanado en el
+    // GeoJSON (9999 = nunca visitado → pasa cualquier umbral).
+    f.sinVisitaDias > 0 ? ['>=', ['get', 'diasSinVisita'], f.sinVisitaDias] : true,
   ]
   // El pozo pasa si CUALQUIERA de sus métodos está seleccionado
   // ('metodos' es un string "GL,BES" — 'in' sobre string hace substring,

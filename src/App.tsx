@@ -46,13 +46,17 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="app-layout">
-        <MapaBase />
-        <BarraHerramientas />
-        <PanelFiltros />
-        <PanelDetalle />
-        <PanelAsignacion />
-        <PanelPlan />
-        <ModalSincronizacion />
+        <aside className="app-rail">
+          <PanelFiltros />
+        </aside>
+        <div className="app-mapa">
+          <MapaBase />
+          <BarraHerramientas />
+          <PanelDetalle />
+          <PanelAsignacion />
+          <PanelPlan />
+          <ModalSincronizacion />
+        </div>
       </div>
     </ErrorBoundary>
   )

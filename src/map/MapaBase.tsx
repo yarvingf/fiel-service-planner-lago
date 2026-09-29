@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Map, { NavigationControl, ScaleControl, type MapRef } from 'react-map-gl/maplibre'
-import { setWorkerUrl } from 'maplibre-gl'
+import { setWorkerUrl, type MapLayerMouseEvent } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { agregarFuenteSatelite, aplicarModoBase, ESTILO_VECTORIAL_URL } from './estilos'
-import { agregarCapasMarcadores, actualizarDatosMarcadores, aplicarColorPor } from './capasMarcadores'
+import { agregarFuenteSatelite, aplicarModoBase, limpiarCapasIrrelevantes, ESTILO_VECTORIAL_URL } from './estilos'
+import { agregarCapasMarcadores, actualizarDatosMarcadores, aplicarColorPor, ID_CAPA_POZOS, ID_CAPA_INSTALACIONES } from './capasMarcadores'
 import { conectarTooltip, conectarSeleccion } from './tooltip'
 import { aplicarFiltros } from './filtros'
 import { aplicarEstiloLineas, detenerEstiloLineas } from './estiloLineas'
@@ -14,7 +14,9 @@ import { sincronizarEstadosMapa, reiniciarEstadosMapa } from './asignacionesMapa
 import { pozosAGeoJSON, instalacionesAGeoJSON, lineasAsociacionAGeoJSON } from '@/data/geojson'
 import { useDatosStore } from '@/state/datosStore'
 import { pozoPasaFiltros, useFiltrosStore } from '@/state/filtrosStore'
+import { diasSinVisitaPorPozo } from '@/domain/visitaCampo'
 import { useAsignacionesStore, type ModoSeleccion } from '@/state/asignacionesStore'
+import { MenuContextual, type PosMenuContextual } from '@/ui/MenuContextual'
 import './MapaBase.css'
 
 type ModoBase = 'vectorial' | 'satelital'
@@ -34,9 +36,11 @@ export function MapaBase() {
   const mapRef = useRef<MapRef | null>(null)
   const [modoBase, setModoBase] = useState<ModoBase>('satelital')
   const [mapaListo, setMapaListo] = useState(false)
+  const [menuContextual, setMenuContextual] = useState<PosMenuContextual | null>(null)
 
   const pozos = useDatosStore((s) => s.pozos)
   const instalaciones = useDatosStore((s) => s.instalaciones)
+  const visitas = useDatosStore((s) => s.visitas)
   const seleccionado = useDatosStore((s) => s.seleccionado)
   const filtros = useFiltrosStore((s) => s.filtros)
   const { modoSeleccion, asignaciones, fecha, cuadrillas, seleccion, colorPor } = useAsignacionesStore()
@@ -50,6 +54,11 @@ export function MapaBase() {
     return ids
   }, [asignaciones, fecha])
 
+  // Días desde la última visita GL/BES por pozo — alimenta el filtro
+  // "sin visita ≥ X días" (GeoJSON + predicado JS). Los pozos sin visita no
+  // aparecen en el mapa: pozoPasaFiltros los cuenta como "nunca visitados".
+  const diasSinVisita = useMemo(() => diasSinVisitaPorPozo(visitas), [visitas])
+
   // Ids de instalaciones referenciadas (efId/mgId) por los pozos que pasan los
   // filtros actuales — alimenta "solo instalaciones asociadas". Las
   // expresiones de MapLibre no pueden hacer join entre fuentes, así que el
@@ -61,17 +70,21 @@ export function MapaBase() {
     const instPorId = new globalThis.Map(instalaciones.map((i) => [i.id, i] as const))
     const ids = new Set<string>()
     for (const p of pozos) {
-      if (!pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy)) continue
+      if (!pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy, diasSinVisita)) continue
       if (p.efId) ids.add(p.efId)
       if (p.mgId) ids.add(p.mgId)
     }
     return ids
-  }, [filtros, pozos, instalaciones, idsAsignadosHoy])
+  }, [filtros, pozos, instalaciones, idsAsignadosHoy, diasSinVisita])
 
   const alCargar = useCallback(() => {
     const map = mapRef.current?.getMap()
     if (!map) return
     agregarFuenteSatelite(map)
+    // Elimina capas de escudos de autopista del estilo remoto (irrelevantes en
+    // el lago, generan warnings de sprites ausentes). Antes de aplicarModoBase
+    // para que no queden capturadas en capasEstiloBase.
+    limpiarCapasIrrelevantes(map)
     aplicarModoBase(map, 'satelital')
     agregarCapasMarcadores(map)
     conectarTooltip(map)
@@ -87,13 +100,13 @@ export function MapaBase() {
     if (!mapaListo || !map) return
     actualizarDatosMarcadores(
       map,
-      pozosAGeoJSON(pozos, instalaciones),
+      pozosAGeoJSON(pozos, instalaciones, diasSinVisita),
       instalacionesAGeoJSON(instalaciones),
-      lineasAsociacionAGeoJSON(pozos, instalaciones),
+      lineasAsociacionAGeoJSON(pozos, instalaciones, diasSinVisita),
     )
     reiniciarEstadosMapa()
     sincronizarEstadosMapa(map)
-  }, [mapaListo, pozos, instalaciones])
+  }, [mapaListo, pozos, instalaciones, diasSinVisita])
 
   // Filtros → setFilter() GPU-side sobre las capas. Incluye el set de
   // asignados-hoy para el filtro Asignado/No asignado (ver filtros.ts).
@@ -128,6 +141,36 @@ export function MapaBase() {
     if (!mapaListo || !map) return
     aplicarColorPor(map, colorPor)
   }, [mapaListo, colorPor])
+
+  // Clic derecho sobre pozo/instalación → menú contextual (asignar, selección,
+  // detalle, copiar línea WhatsApp). En canvas vacío queda el menú del navegador.
+  useEffect(() => {
+    const map = mapRef.current?.getMap()
+    if (!mapaListo || !map) return
+    const abrir = (e: MapLayerMouseEvent) => {
+      e.preventDefault()
+      const f = e.features?.[0]
+      const id = f?.properties?.['id']
+      if (!f || !id) return
+      setMenuContextual({
+        x: e.originalEvent.clientX,
+        y: e.originalEvent.clientY,
+        kind: f.properties?.['kind'] === 'pozo' ? 'pozo' : 'instalacion',
+        id: String(id),
+      })
+    }
+    const cerrar = () => setMenuContextual(null)
+    map.on('contextmenu', ID_CAPA_POZOS, abrir)
+    map.on('contextmenu', ID_CAPA_INSTALACIONES, abrir)
+    map.on('click', cerrar)
+    map.on('movestart', cerrar)
+    return () => {
+      map.off('contextmenu', ID_CAPA_POZOS, abrir)
+      map.off('contextmenu', ID_CAPA_INSTALACIONES, abrir)
+      map.off('click', cerrar)
+      map.off('movestart', cerrar)
+    }
+  }, [mapaListo])
 
   // Modo de dibujo (rectángulo / lazo) para seleccionar objetivos.
   // 'multi' no usa Terra Draw: alterna objetivos con clic vía conectarSeleccion.
@@ -214,6 +257,10 @@ export function MapaBase() {
         <div className="mapa-atribucion-satelite">
           EOxCloudless — cloudless.eox.at — Copernicus Sentinel data 2016 &amp; 2017
         </div>
+      )}
+
+      {menuContextual && (
+        <MenuContextual {...menuContextual} onCerrar={() => setMenuContextual(null)} />
       )}
     </div>
   )

@@ -51,3 +51,16 @@ export function ultimaVisitaPorPozo(visitas: readonly VisitaCampo[]): Map<string
   }
   return ultimo
 }
+
+/**
+ * Días desde la última visita GL/BES de cada pozo (respecto a `hoy`). Los
+ * pozos sin NINGUNA visita no aparecen en el mapa — los callers los tratan
+ * como "nunca visitado", más viejo que cualquier umbral configurable.
+ */
+export function diasSinVisitaPorPozo(visitas: readonly VisitaCampo[], hoy = new Date()): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const [pozoId, v] of ultimaVisitaPorPozo(visitas)) {
+    out.set(pozoId, Math.max(0, Math.floor((hoy.getTime() - v.fecha.getTime()) / 86_400_000)))
+  }
+  return out
+}

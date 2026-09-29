@@ -365,8 +365,8 @@ export function agregarCapasMarcadores(map: MaplibreMap): void {
       minzoom: 11,
       layout: {
         'text-field': ['get', 'codigo'],
-        'text-font': ['Noto Sans Regular'],
-        'text-size': 10,
+        'text-font': ['Noto Sans Bold'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 11, 11, 13, 13, 15.5, 14],
         'text-offset': [0, 1.1],
         'text-anchor': 'top',
         'text-optional': true,
@@ -374,7 +374,7 @@ export function agregarCapasMarcadores(map: MaplibreMap): void {
       paint: {
         'text-color': '#0f172a',
         'text-halo-color': '#ffffff',
-        'text-halo-width': 1.2,
+        'text-halo-width': 1.8,
       },
     })
   }
@@ -430,8 +430,10 @@ export function agregarCapasMarcadores(map: MaplibreMap): void {
       minzoom: 10.5,
       layout: {
         'text-field': ['get', 'codigo'],
-        'text-font': ['Noto Sans Regular'],
-        'text-size': 10,
+        // Negrita + tamaño que crece con el zoom: a zoom bajo se lee el
+        // código sin apelar a la lupa, y a zoom alto queda proporcionado.
+        'text-font': ['Noto Sans Bold'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 10.5, 11, 13, 14, 15.5, 16],
         'text-offset': [0, 1.1],
         'text-anchor': 'top',
         'text-optional': true,
@@ -439,9 +441,10 @@ export function agregarCapasMarcadores(map: MaplibreMap): void {
         'symbol-sort-key': ['get', 'potDifConfirmado'],
       },
       paint: {
-        'text-color': '#111827',
+        'text-color': '#0b1220',
         'text-halo-color': '#ffffff',
-        'text-halo-width': 1.2,
+        'text-halo-width': 2,
+        'text-halo-blur': 0.6,
       },
     })
   }

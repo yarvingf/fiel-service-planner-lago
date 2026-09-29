@@ -1,8 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useDatosStore } from '@/state/datosStore'
 import { calcularDerivadosPozo, type PozoConCompletaciones } from '@/domain/pozo'
 import { NOMBRES_TIPO_INSTALACION, type Instalacion } from '@/domain/instalacion'
 import { ultimaVisitaPorPozo, type VisitaCampo } from '@/domain/visitaCampo'
+import { listarVisitasPozo } from '@/data/persistencia'
+import { supabase } from '@/data/supabaseClient'
 import { COLORES_ESTATUS } from '@/map/capasMarcadores'
 import './PanelDetalle.css'
 
@@ -28,6 +30,59 @@ function UltimaVisita({ visita }: { visita: VisitaCampo }) {
         <span>Estado final</span><b>{visita.estadoFinal ?? '—'}</b>
       </div>
       {visita.comentarios && <div className="pd-comentario">{visita.comentarios}</div>}
+    </>
+  )
+}
+
+/**
+ * Historial completo de visitas del pozo — NO se carga al arranque (el
+ * universo solo trae la última por pozo); se pide a Supabase al expandir.
+ * En dev sin Supabase filtra las visitas ya en memoria (cargarExcelDev las
+ * conserva completas).
+ */
+function HistorialVisitas({ pozoId }: { pozoId: string }) {
+  const [abierto, setAbierto] = useState(false)
+  const [lista, setLista] = useState<VisitaCampo[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const cargar = async () => {
+    setAbierto((v) => !v)
+    if (lista !== null || abierto) return
+    try {
+      if (supabase) {
+        setLista(await listarVisitasPozo(pozoId))
+      } else {
+        setLista(
+          useDatosStore.getState().visitas
+            .filter((v) => v.pozoId === pozoId)
+            .sort((a, b) => b.fecha.getTime() - a.fecha.getTime()),
+        )
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  return (
+    <>
+      <button type="button" className="pd-historial-toggle" onClick={() => void cargar()}>
+        {abierto ? '▾' : '▸'} Historial de visitas{lista ? ` (${lista.length})` : ''}
+      </button>
+      {abierto && (
+        <div className="pd-historial">
+          {error && <div className="pd-aviso">⚠ {error}</div>}
+          {!error && lista === null && <span className="pd-vacio">Cargando…</span>}
+          {lista?.length === 0 && <span className="pd-vacio">Sin visitas registradas</span>}
+          {lista?.map((v) => (
+            <div key={v.id} className="pd-visita">
+              <b>{fmtFecha(v.fecha)}</b> · {v.tipo} · {v.cuadrilla || '—'}
+              {v.tipoActividad && <> · {v.tipoActividad}</>}
+              {v.estadoFinal && <> · <b>{v.estadoFinal}</b></>}
+              {v.comentarios && <div className="pd-comentario">{v.comentarios}</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </>
   )
 }
@@ -92,6 +147,7 @@ function DetallePozo({ pozo }: { pozo: PozoConCompletaciones }) {
           <span className="pd-vacio">Sin visitas GL/BES vinculadas a este pozo</span>
         </>
       )}
+      <HistorialVisitas pozoId={pozo.id} />
     </>
   )
 }

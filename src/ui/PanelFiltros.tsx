@@ -9,6 +9,7 @@ import {
 } from '@/state/filtrosStore'
 import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
+import { diasSinVisitaPorPozo } from '@/domain/visitaCampo'
 import { formatearFecha } from '@/domain/fecha'
 import { TIPOS_INSTALACION_VISIBLES, NOMBRES_TIPO_INSTALACION } from '@/domain/instalacion'
 import { COLORES_ESTATUS } from '@/map/capasMarcadores'
@@ -60,7 +61,7 @@ function resumenMulti(seleccion: string[] | null, total: number): string {
 
 export function PanelFiltros() {
   const { filtros, setFiltros, alternarEn, limpiar } = useFiltrosStore()
-  const { pozos, instalaciones } = useDatosStore()
+  const { pozos, instalaciones, visitas } = useDatosStore()
   const nSeleccion = useAsignacionesStore((s) => s.seleccion.length)
   const limpiarSeleccion = useAsignacionesStore((s) => s.limpiarSeleccion)
   const asignaciones = useAsignacionesStore((s) => s.asignaciones)
@@ -77,15 +78,19 @@ export function PanelFiltros() {
     return ids
   }, [asignaciones, fechaPlan])
 
+  // Días desde la última visita por pozo — el mismo mapa que pasa al GeoJSON
+  // del mapa; aquí alimenta el predicado JS para el conteo "visibles".
+  const diasSinVisita = useMemo(() => diasSinVisitaPorPozo(visitas), [visitas])
+
   // Conteo de pozos visibles con la misma lógica que la expresión del mapa,
   // para mostrar "132 de 1398" sin consultar el canvas.
   const visibles = useMemo(() => {
     let n = 0
     for (const p of pozos) {
-      if (pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy)) n++
+      if (pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy, diasSinVisita)) n++
     }
     return n
-  }, [pozos, filtros, instPorId, idsAsignadosHoy])
+  }, [pozos, filtros, instPorId, idsAsignadosHoy, diasSinVisita])
 
   // Códigos EF/MG disponibles, reactivos al Campo activo: si solo BA está
   // marcado, solo aparecen EF/MG de pozos de BA (y viceversa con VLC/VLG).
@@ -215,10 +220,13 @@ export function PanelFiltros() {
       <Seccion
         titulo="Límites"
         resumen={
-          filtros.diferidoMin === 0 && filtros.bnpdMin === 0
+          filtros.diferidoMin === 0 && filtros.bnpdMin === 0 && filtros.sinVisitaDias === 0
             ? 'Sin mínimos'
-            : [filtros.diferidoMin > 0 && `Dif≥${filtros.diferidoMin}`, filtros.bnpdMin > 0 && `BNPD≥${filtros.bnpdMin}`]
-                .filter(Boolean).join(' · ')
+            : [
+                filtros.diferidoMin > 0 && `Dif≥${filtros.diferidoMin}`,
+                filtros.bnpdMin > 0 && `BNPD≥${filtros.bnpdMin}`,
+                filtros.sinVisitaDias > 0 && `SV≥${filtros.sinVisitaDias}d`,
+              ].filter(Boolean).join(' · ')
         }
       >
         <div className="pf-numericos">
@@ -229,6 +237,10 @@ export function PanelFiltros() {
           <label>
             BNPD ≥ <input type="number" min={0} value={filtros.bnpdMin || ''} placeholder="0"
               onChange={(e) => setFiltros({ bnpdMin: Number(e.target.value) || 0 })} /> BPD
+          </label>
+          <label title="Muestra solo pozos cuya última visita GL/BES fue hace X días o más. Los pozos jamás visitados también pasan.">
+            Sin visita ≥ <input type="number" min={0} value={filtros.sinVisitaDias || ''} placeholder="0"
+              onChange={(e) => setFiltros({ sinVisitaDias: Number(e.target.value) || 0 })} /> días
           </label>
         </div>
       </Seccion>

@@ -1,8 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore, type IdObjetivo } from '@/state/asignacionesStore'
-import { ModalCoa } from './ModalCoa'
+
+// El modal COA solo se descarga al abrirlo por primera vez (chunk aparte).
+const ModalCoa = lazy(() => import('./ModalCoa').then((m) => ({ default: m.ModalCoa })))
 import { HerramientaMenu } from './HerramientaMenu'
 import { CapturaMenu } from './CapturaMenu'
 import { mapaInstancia } from '@/map/mapaInstancia'
@@ -40,8 +42,29 @@ export function BarraHerramientas() {
     alternarObjetivo, agregarASeleccion, iniciarAsignacion,
   } = useAsignacionesStore()
   const [query, setQuery] = useState('')
+  const [activo, setActivo] = useState(0)
   const [modalCoa, setModalCoa] = useState(false)
   const inputArchivo = useRef<HTMLInputElement>(null)
+  const inputBusqueda = useRef<HTMLInputElement>(null)
+
+  // Ctrl+K (o `/` fuera de campos de texto) enfoca el buscador desde cualquier
+  // parte de la app — estándar de Paleta de comandos.
+  useEffect(() => {
+    const esCampoTexto = (t: EventTarget | null) =>
+      t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+    const alBajar = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        inputBusqueda.current?.focus()
+        inputBusqueda.current?.select()
+      } else if (e.key === '/' && !esCampoTexto(e.target)) {
+        e.preventDefault()
+        inputBusqueda.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', alBajar)
+    return () => window.removeEventListener('keydown', alBajar)
+  }, [])
   const instPorId = useMemo(() => new Map(instalaciones.map((i) => [i.id, i])), [instalaciones])
 
   const selSet = useMemo(() => new Set(seleccion), [seleccion])
@@ -107,11 +130,25 @@ export function BarraHerramientas() {
     <div className="barra-herramientas">
       <div className="bh-busqueda">
         <input
+          ref={inputBusqueda}
           type="text"
           value={query}
-          placeholder="Buscar pozo o instalación (BA 345, VLC, EF-BA-17, MG...)"
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && resultados[0]) irA(resultados[0]) }}
+          placeholder="Buscar pozo o instalación (BA 345, VLC, EF-BA-17, MG...) — Ctrl+K"
+          onChange={(e) => { setQuery(e.target.value); setActivo(0) }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' && resultados.length > 0) {
+              e.preventDefault()
+              setActivo((a) => Math.min(a + 1, resultados.length - 1))
+            } else if (e.key === 'ArrowUp' && resultados.length > 0) {
+              e.preventDefault()
+              setActivo((a) => Math.max(a - 1, 0))
+            } else if (e.key === 'Enter' && resultados.length > 0) {
+              irA(resultados[activo] ?? resultados[0])
+            } else if (e.key === 'Escape') {
+              setQuery('')
+              inputBusqueda.current?.blur()
+            }
+          }}
         />
         {resultados.length > 0 && (
           <ul className="bh-resultados">
@@ -125,7 +162,7 @@ export function BarraHerramientas() {
                 </button>
               </li>
             )}
-            {resultados.map((r) => {
+            {resultados.map((r, i) => {
               const oid = objetivoIdDe(r)
               const enSeleccion = selSet.has(oid)
               const dueno = asignacionHoy.get(oid)
@@ -133,7 +170,13 @@ export function BarraHerramientas() {
               const yaDeActiva = dueno !== undefined && dueno === cuadrillaActiva
               return (
                 <li key={`${r.kind}-${r.id}`}>
-                  <button type="button" className="bh-res" onClick={() => irA(r)}>
+                  <button
+                    type="button"
+                    className={`bh-res${i === activo ? ' bh-res-activo' : ''}`}
+                    onMouseEnter={() => setActivo(i)}
+                    ref={i === activo ? (el) => el?.scrollIntoView({ block: 'nearest' }) : undefined}
+                    onClick={() => irA(r)}
+                  >
                     <b>
                       {cuadrillaDe && (
                         <i
@@ -222,7 +265,13 @@ export function BarraHerramientas() {
       </div>
     )}
 
-    {modalCoa && createPortal(<ModalCoa onCerrar={() => setModalCoa(false)} />, document.body)}
+    {modalCoa &&
+      createPortal(
+        <Suspense fallback={null}>
+          <ModalCoa onCerrar={() => setModalCoa(false)} />
+        </Suspense>,
+        document.body,
+      )}
     </>
   )
 }

@@ -24,11 +24,14 @@ export interface PropsPozo {
   mg: string
   /** Reservado para asignaciones (id de cuadrilla o ''). */
   cuadrilla: string
+  /** Días desde la última visita GL/BES; 9999 si nunca fue visitado. */
+  diasSinVisita: number
 }
 
 export function pozosAGeoJSON(
   pozos: readonly PozoConCompletaciones[],
   instalaciones: readonly Instalacion[],
+  diasSinVisita?: ReadonlyMap<string, number>,
 ): FeatureCollection {
   const instPorId = new Map(instalaciones.map((i) => [i.id, i]))
   return {
@@ -52,6 +55,7 @@ export function pozosAGeoJSON(
           ef: (p.efId && instPorId.get(p.efId)?.codigo) ?? '',
           mg: (p.mgId && instPorId.get(p.mgId)?.codigo) ?? '',
           cuadrilla: '',
+          diasSinVisita: diasSinVisita?.get(p.id) ?? 9999,
         }
         return {
           type: 'Feature' as const,
@@ -74,6 +78,8 @@ export interface PropsLinea {
   mg: string
   /** Código del pozo en este extremo — permite resaltar al pasar el mouse por él. */
   pozoCodigo: string
+  /** Días desde la última visita del pozo de este extremo; 9999 si nunca. */
+  diasSinVisita: number
 }
 
 /**
@@ -84,6 +90,7 @@ export interface PropsLinea {
 export function lineasAsociacionAGeoJSON(
   pozos: readonly PozoConCompletaciones[],
   instalaciones: readonly Instalacion[],
+  diasSinVisita?: ReadonlyMap<string, number>,
 ): FeatureCollection {
   const instPorId = new Map(instalaciones.map((i) => [i.id, i]))
   const features: FeatureCollection['features'] = []
@@ -101,6 +108,7 @@ export function lineasAsociacionAGeoJSON(
       ef: ef?.codigo ?? '',
       mg: mg?.codigo ?? '',
       pozoCodigo: p.codigo,
+      diasSinVisita: diasSinVisita?.get(p.id) ?? 9999,
     }
     for (const [tipoLinea, inst] of [['EF', ef], ['MG', mg]] as const) {
       if (!inst || inst.lat === null || inst.lon === null) continue

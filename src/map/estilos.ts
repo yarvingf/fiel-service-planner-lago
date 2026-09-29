@@ -67,6 +67,25 @@ export function agregarFuenteSatelite(map: MaplibreMap): void {
 // visibles encima de la imagen y se confunden con nuestras instalaciones.
 let capasEstiloBase: string[] | null = null
 
+/**
+ * Quita del estilo remoto las capas de escudos de autopista (Liberty trae las
+ * de EE.UU./Europa: referencian sprites que el tileset de la región no tiene →
+ * warnings en consola cada vez que el sprite se resuelve). Son irrelevantes en
+ * el lago; hay que llamarlo antes de la primera `aplicarModoBase` para que las
+ * capas borradas no queden en `capasEstiloBase` ni reaparezcan en modo satélite.
+ */
+export function limpiarCapasIrrelevantes(map: MaplibreMap): void {
+  for (const capa of map.getStyle().layers ?? []) {
+    if (/highway-shield|road_.*shield|shield/i.test(capa.id)) {
+      try {
+        map.removeLayer(capa.id)
+      } catch {
+        // Capa ya removida o dependencia del estilo — ignorar.
+      }
+    }
+  }
+}
+
 export function aplicarModoBase(map: MaplibreMap, modo: 'vectorial' | 'satelital'): void {
   if (capasEstiloBase === null) {
     capasEstiloBase = (map.getStyle().layers ?? []).map((l) => l.id).filter((id) => id !== ID_CAPA_SATELITE)

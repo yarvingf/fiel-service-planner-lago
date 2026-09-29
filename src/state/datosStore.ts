@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { PozoConCompletaciones } from '@/domain/pozo'
 import type { Instalacion } from '@/domain/instalacion'
 import type { AlertaImport } from '@/domain/alertasImport'
-import type { VisitaCampo } from '@/domain/visitaCampo'
+import { ultimaVisitaPorPozo, type VisitaCampo } from '@/domain/visitaCampo'
 import { importarExcel } from '@/data/importadorExcel'
 import { importarCsvPozos } from '@/data/importadorCsv'
 import { calcularDiff, type DiffUniverso } from '@/data/sincronizarUniverso'
@@ -29,7 +29,12 @@ export interface SincronizacionPendiente {
 interface EstadoDatos {
   pozos: PozoConCompletaciones[]
   instalaciones: Instalacion[]
-  /** Bitácora de visitas GL/BES — no se muestra en el mapa, solo "última visita" en el detalle del pozo. */
+  /**
+   * Última visita GL/BES por pozo (NO el historial completo — el arranque
+   * solo consume esa; el historial de un pozo se pide bajo demanda con
+   * `listarVisitasPozo`). El diff de sync compara contra el set completo
+   * que `prepararSincronizacion` pide aparte a la base.
+   */
   visitas: VisitaCampo[]
   alertas: AlertaImport[]
   cargando: boolean
@@ -84,15 +89,27 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
     set({ cargando: true, error: null })
     try {
       const esCsv = file.name.toLowerCase().endsWith('.csv')
-      // El CSV solo trae la hoja Pozos — sin visitas GL/BES, se conservan
-      // las ya cargadas (el diff las compara igual, sin verse afectadas).
+      // El diff se calcula SIEMPRE contra el estado real de Supabase, nunca
+      // contra el store local: si la app cayó al fallback de desarrollo
+      // (Excel local en memoria, sin persistir) o si otro planificador ya
+      // sincronizó algo, comparar contra `get().pozos` mostraría "0 nuevos"
+      // de forma engañosa y el upsert de completaciones referenciaría pozos
+      // que en realidad no existen en la base (viola la FK).
+      // `visitasCompletas`: el historial entero — el diff compara visitas por
+      // llave de negocio y el store solo guarda la última por pozo.
+      const actual = supabase
+        ? await obtenerUniverso({ visitasCompletas: true })
+        : { pozos: get().pozos, instalaciones: get().instalaciones, visitas: get().visitas }
       let pozos: PozoConCompletaciones[], instalaciones: Instalacion[], visitas: VisitaCampo[], alertas: AlertaImport[]
       if (esCsv) {
         const r = importarCsvPozos(await file.text(), get().instalaciones)
         pozos = r.pozos
         alertas = r.alertas
         instalaciones = get().instalaciones
-        visitas = get().visitas
+        // El CSV no trae hojas GL/BES → las visitas no cambian. `nuevo` toma
+        // el set actual tal cual para que el diff reporte 0 en vez de
+        // actualizaciones fantasma (el store solo guarda la última por pozo).
+        visitas = actual.visitas
       } else {
         const r = await importarExcel(await file.arrayBuffer())
         pozos = r.pozos
@@ -100,15 +117,6 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
         visitas = r.visitas
         alertas = r.alertas
       }
-      // El diff se calcula SIEMPRE contra el estado real de Supabase, nunca
-      // contra el store local: si la app cayó al fallback de desarrollo
-      // (Excel local en memoria, sin persistir) o si otro planificador ya
-      // sincronizó algo, comparar contra `get().pozos` mostraría "0 nuevos"
-      // de forma engañosa y el upsert de completaciones referenciaría pozos
-      // que en realidad no existen en la base (viola la FK).
-      const actual = supabase
-        ? await obtenerUniverso()
-        : { pozos: get().pozos, instalaciones: get().instalaciones, visitas: get().visitas }
       const diff = calcularDiff({ pozos, instalaciones, visitas }, actual)
       set({
         cargando: false,
@@ -135,7 +143,9 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
       set((s) => ({
         pozos: pend.pozos,
         instalaciones: pend.instalaciones,
-        visitas: pend.visitas,
+        // El store conserva solo la última visita por pozo — el historial
+        // completo ya quedó persistido y no hace falta en memoria.
+        visitas: [...ultimaVisitaPorPozo(pend.visitas).values()],
         alertas: pend.alertas,
         sincPendiente: null,
         sincronizando: false,
@@ -199,6 +209,8 @@ export async function cargarExcelDev(): Promise<void> {
     const res = await fetch('/Excel%20Data.xlsx')
     if (!res.ok) return
     const { pozos, instalaciones, visitas, alertas } = await importarExcel(await res.arrayBuffer())
+    // En dev sin Supabase se conserva el historial completo en memoria: es la
+    // única fuente para el "historial bajo demanda" del detalle del pozo.
     useDatosStore.setState((s) => ({ pozos, instalaciones, visitas, alertas, versionDatos: s.versionDatos + 1 }))
   } catch {
     // Sin archivo local: el mapa arranca vacío y los datos vendrán de Supabase.

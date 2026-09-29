@@ -5,10 +5,11 @@
   flex: 1 1 auto;
 }
 
+/* Sobre la consola de mando (54px) — queda apilado con el inspector. */
 .mapa-boton-base {
   position: absolute;
-  bottom: 28px;
-  left: 12px;
+  bottom: 66px;
+  left: 16px;
   z-index: 1;
   font: inherit;
   font-size: 14px;
@@ -30,7 +31,7 @@
 
 .mapa-atribucion-satelite {
   position: absolute;
-  bottom: 4px;
+  bottom: 58px;
   right: 8px;
   z-index: 1;
   font-size: 11px;

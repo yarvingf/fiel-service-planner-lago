@@ -1,23 +1,23 @@
-/* Consola de mando: barra fija inferior, acoplada al borde del mapa. */
+/* Consola de mando: barra inferior a todo el ancho del lienzo del mapa.
+   Altura fija (las cuadrillas hacen scroll horizontal, no envuelven) para
+   que los demás paneles puedan apoyarse en un borde predecible. */
 .panel-asignacion {
   position: absolute;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   gap: 14px;
-  min-width: 560px;
-  max-width: 900px;
+  height: 54px;
+  box-sizing: border-box;
   background: var(--hud-bg);
-  border: 1px solid var(--hud-border);
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
+  border-top: 1px solid var(--hud-border);
   padding: 8px 16px;
   z-index: 10;
   font-size: 13px;
   color: var(--hud-text);
-  box-shadow: var(--hud-shadow);
+  box-shadow: 0 -2px 10px rgba(15, 26, 46, 0.06);
 }
 
 .pa-etiqueta {
@@ -38,8 +38,11 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
   flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .pa-chip {
@@ -185,3 +188,59 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+.pa-modal-cerrar {
+  float: right;
+  border: none;
+  background: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0 4px;
+}
+.pa-modal-cerrar:hover { color: #0f172a; }
+
+/* Modal "Copiar plan" — preview de la plantilla antes de aplicar */
+.pa-copia-fecha {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+.pa-copia-fecha input {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.pa-modal-acciones-grupo { align-items: center; flex-wrap: wrap; }
+.pa-copia-vacio { padding: 20px 0; text-align: center; color: #64748b; font-size: 12px; }
+.pa-copia-grupo { flex-direction: column; align-items: stretch !important; gap: 2px !important; }
+.pa-copia-cuadrilla {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 4px 0 2px;
+}
+.pa-copia-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0 3px 16px;
+  cursor: pointer;
+}
+.pa-copia-fila input[type="checkbox"] { margin: 0; }
+.pa-copia-actividad {
+  flex: 1;
+  min-width: 0;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pa-copia-conflicto { color: #b45309; font-size: 10px; white-space: nowrap; }

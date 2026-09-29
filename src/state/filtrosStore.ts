@@ -40,6 +40,11 @@ export interface Filtros {
    * solo las EF/MG de pozos cerrados. false = todas las instalaciones.
    */
   soloInstAsociadas: boolean
+  /**
+   * Antigüedad mínima de la última visita GL/BES, en días: el pozo pasa si
+   * hace ≥N días de su última visita — o si nunca ha sido visitado. 0 = off.
+   */
+  sinVisitaDias: number
 }
 
 const TODOS_ESTATUS: EstatusCoa[] = ['Abierto', 'Cerrado', 'Indeterminado']
@@ -59,6 +64,7 @@ export const FILTROS_DEFAULT: Filtros = {
   estiloLineas: 'gradiente',
   asignacionFiltro: 'todos',
   soloInstAsociadas: false,
+  sinVisitaDias: 0,
 }
 
 interface EstadoFiltros {
@@ -91,6 +97,7 @@ export function pozoPasaFiltros(
   f: Filtros,
   instPorId: ReadonlyMap<string, Instalacion>,
   idsAsignados: ReadonlySet<string>,
+  diasSinVisita?: ReadonlyMap<string, number>,
 ): boolean {
   if (p.reemplazado || !p.activo || p.lat === null) return false
   const d = calcularDerivadosPozo(p.completaciones)
@@ -107,6 +114,11 @@ export function pozoPasaFiltros(
     const asignado = idsAsignados.has(`pozo|${p.id}`)
     if (f.asignacionFiltro === 'asignado' && !asignado) return false
     if (f.asignacionFiltro === 'noAsignado' && asignado) return false
+  }
+  // Sin visita registrada = "nunca visitado" → pasa cualquier umbral >0.
+  if (f.sinVisitaDias > 0) {
+    const dias = diasSinVisita?.get(p.id)
+    if (dias !== undefined && dias < f.sinVisitaDias) return false
   }
   return true
 }

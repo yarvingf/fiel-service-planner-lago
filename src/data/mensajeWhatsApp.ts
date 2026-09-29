@@ -5,7 +5,7 @@ import { formatearFechaCorta } from '@/domain/fecha'
 import type { DetalleObjetivo } from '@/domain/detalleAsignacion'
 
 /** Bolita de estatus dentro de la negrita de cada pozo (rojo cerrado, verde abierto). */
-const EMOJI_ESTATUS: Record<EstatusCoa, string> = {
+export const EMOJI_ESTATUS: Record<EstatusCoa, string> = {
   Abierto: '🟢',
   Cerrado: '🔴',
   Indeterminado: '⚪',

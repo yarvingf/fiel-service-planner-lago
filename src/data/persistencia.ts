@@ -2,7 +2,7 @@ import { supabase, MENSAJE_FALTA_CONFIG } from './supabaseClient'
 import type { Cuadrilla } from '@/domain/cuadrilla'
 import type { Instalacion } from '@/domain/instalacion'
 import type { PozoCompletacion, PozoConCompletaciones } from '@/domain/pozo'
-import type { VisitaCampo } from '@/domain/visitaCampo'
+import { ultimaVisitaPorPozo, type VisitaCampo } from '@/domain/visitaCampo'
 import type { DiffUniverso, Universo } from './sincronizarUniverso'
 import type { Database } from './database.types'
 
@@ -189,6 +189,64 @@ export async function borrarAsignacionesCuadrilla(fecha: string, cuadrillaId: st
   if (error) throw traducirError(error)
 }
 
+/** Última fecha anterior a `fecha` que tiene alguna asignación (plantilla más reciente), o null. */
+export async function ultimaFechaConPlan(fecha: string): Promise<string | null> {
+  const { data, error } = await cliente()
+    .from('asignaciones')
+    .select('fecha')
+    .lt('fecha', fecha)
+    .order('fecha', { ascending: false })
+    .limit(1)
+  if (error) throw traducirError(error)
+  return data?.[0]?.fecha ?? null
+}
+
+/** Un ítem de la plantilla copiada: asignación completa (con sus campos editables) para otra fecha. */
+export interface ItemCopiaPlan {
+  objetivoId: string
+  codigo: string
+  cuadrillaId: string
+  actividad: string | null
+  nota: string | null
+  prioridad: number | null
+  validarAjuste: boolean
+  requiereManometro: boolean
+  requiereNivel: boolean
+}
+
+/**
+ * Replica asignaciones de otra fecha sobre `fechaDestino` conservando
+ * actividad/nota/prioridad/checklist. El índice único (fecha, objetivo_id)
+ * hace upsert: si el objetivo ya tenía dueño ese día, la copia lo reemplaza
+ * (eso lo decide el usuario por fila en el preview).
+ */
+export async function copiarAsignaciones(
+  fechaDestino: string,
+  items: ItemCopiaPlan[],
+  asignadoPor: string,
+): Promise<AsignacionRemota[]> {
+  if (items.length === 0) return []
+  const filas: InsertAsignacion[] = items.map((i) => ({
+    fecha: fechaDestino,
+    cuadrilla_id: i.cuadrillaId,
+    objetivo_id: i.objetivoId,
+    objetivo_codigo: i.codigo,
+    actividad: i.actividad,
+    nota: i.nota,
+    prioridad: i.prioridad,
+    validar_ajuste: i.validarAjuste,
+    requiere_manometro: i.requiereManometro,
+    requiere_nivel: i.requiereNivel,
+    asignado_por: asignadoPor,
+  }))
+  const { data, error } = await cliente()
+    .from('asignaciones')
+    .upsert(filas, { onConflict: 'fecha,objetivo_id' })
+    .select()
+  if (error) throw traducirError(error)
+  return (data ?? []).map(filaAAsignacion)
+}
+
 // ---------------------------------------------------------------------------
 // Universo pozos/instalaciones/completaciones (sync Excel ↔ Supabase, 0005)
 // ---------------------------------------------------------------------------
@@ -356,14 +414,54 @@ function visitaAFila(v: VisitaCampo): InsertVisita {
   }
 }
 
-/** El universo completo persistido: instalaciones + pozos con sus arenas + visitas de campo. */
-export async function obtenerUniverso(): Promise<Universo> {
+/** Columnas de visita necesarias para "última visita"/días sin visita — sin datos_extra ni actualizado_en. */
+const COLUMNAS_VISITA_LIGERAS =
+  'id,tipo,fecha,pozo_texto,pozo_id,cuadrilla,campo,tipo_actividad,estado_inicial,estado_final,comentarios,hora_inicio,hora_fin'
+
+/**
+ * Solo la ÚLTIMA visita por pozo — el arranque no necesita el historial
+ * completo (~10k filas con JSONB pesado). Usa la vista `visitas_ultimas`
+ * (migración 0011); si aún no existe en la base, cae a un select podado de
+ * `visitas_campo` y reduce JS-side al mismo resultado — más tráfico, pero la
+ * app funciona igual hasta correr la migración.
+ */
+async function obtenerVisitasRecientes(): Promise<VisitaCampo[]> {
   const c = cliente()
-  const [instFilas, pozoFilas, compFilas, visitaFilas] = await Promise.all([
+  const vista = await c.from('visitas_ultimas' as 'visitas_campo').select('*')
+  if (!vista.error) return ((vista.data ?? []) as unknown as FilaVisita[]).map(filaAVisita)
+  // Fallback sin migración: todas las filas pero sin datos_extra (la parte
+  // pesada), reducidas a última-por-pozo.
+  const filas = await obtenerTodo<FilaVisita>((d, h) =>
+    c.from('visitas_campo').select(COLUMNAS_VISITA_LIGERAS, { count: 'exact' }).range(d, h) as never)
+  return [...ultimaVisitaPorPozo(filas.map(filaAVisita)).values()]
+}
+
+/** Historial completo de UN pozo, más reciente primero — se pide bajo demanda al abrir su detalle. */
+export async function listarVisitasPozo(pozoId: string): Promise<VisitaCampo[]> {
+  const { data, error } = await cliente()
+    .from('visitas_campo')
+    .select('*')
+    .eq('pozo_id', pozoId)
+    .order('fecha', { ascending: false })
+  if (error) throw traducirError(error)
+  return (data ?? []).map(filaAVisita)
+}
+
+/**
+ * El universo persistido: instalaciones + pozos con sus arenas + visitas.
+ * Por defecto las visitas vienen reducidas a la última por pozo (arranque
+ * liviano); `visitasCompletas: true` trae el historial entero — obligatorio
+ * para calcular diffs de sincronización, que comparan por llave de negocio.
+ */
+export async function obtenerUniverso(opciones?: { visitasCompletas?: boolean }): Promise<Universo> {
+  const c = cliente()
+  const [instFilas, pozoFilas, compFilas, visitas] = await Promise.all([
     obtenerTodo<FilaInstalacion>((d, h) => c.from('instalaciones').select('*', { count: 'exact' }).range(d, h)),
     obtenerTodo<FilaPozo>((d, h) => c.from('pozos').select('*', { count: 'exact' }).range(d, h)),
     obtenerTodo<FilaCompletacion>((d, h) => c.from('pozo_completaciones').select('*', { count: 'exact' }).range(d, h)),
-    obtenerTodo<FilaVisita>((d, h) => c.from('visitas_campo').select('*', { count: 'exact' }).range(d, h)),
+    opciones?.visitasCompletas
+      ? obtenerTodo<FilaVisita>((d, h) => c.from('visitas_campo').select('*', { count: 'exact' }).range(d, h)).then((f) => f.map(filaAVisita))
+      : obtenerVisitasRecientes(),
   ])
   const compsPorPozo = new Map<string, PozoCompletacion[]>()
   for (const f of compFilas) {
@@ -375,7 +473,7 @@ export async function obtenerUniverso(): Promise<Universo> {
   return {
     instalaciones: instFilas.map(filaAInstalacion),
     pozos: pozoFilas.map((f) => filaAPozo(f, compsPorPozo.get(f.id) ?? [])),
-    visitas: visitaFilas.map(filaAVisita),
+    visitas,
   }
 }
 

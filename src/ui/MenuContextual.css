@@ -1,0 +1,91 @@
+/* Menú contextual del mapa (clic derecho sobre pozo/instalación) */
+.mc-menu {
+  position: fixed;
+  z-index: 60;
+  width: 250px;
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.28);
+  padding: 6px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mc-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
+}
+.mc-codigo { font-weight: 700; font-size: 13px; }
+.mc-badge {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.mc-badge-inst { background: #475569; }
+
+.mc-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  color: #64748b;
+  font-size: 11px;
+}
+.mc-punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.mc-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #0f172a;
+  cursor: pointer;
+}
+.mc-item:hover:not(:disabled) { background: #f1f5f9; }
+.mc-item:disabled { color: #94a3b8; cursor: default; }
+.mc-detalle { color: #64748b; font-size: 11px; }
+.mc-cancelar { color: #64748b; border-top: 1px solid #f1f5f9; margin-top: 4px; }
+
+/* Sub-lista de cuadrillas cuando no hay una activa */
+.mc-cuadrillas {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 0 4px 14px;
+}
+.mc-cuadrillas button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.mc-cuadrillas button:hover { background: #f1f5f9; }
+.mc-vacio { color: #94a3b8; padding: 4px 8px; }

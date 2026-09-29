@@ -10,9 +10,11 @@ import {
   guardarAsignaciones,
   borrarAsignaciones,
   borrarAsignacionesCuadrilla,
+  copiarAsignaciones,
   actualizarAsignacion as actualizarAsignacionDb,
   actualizarAsignaciones as actualizarAsignacionesDb,
   type CamposAsignacion,
+  type ItemCopiaPlan,
 } from '@/data/persistencia'
 import { agruparCambiosLote } from '@/data/loteCambios'
 
@@ -206,6 +208,13 @@ interface EstadoAsignaciones {
     cambios: ReadonlyMap<string, CamposAsignacion>,
   ) => Promise<boolean>
   asignacionDe: (objetivoId: IdObjetivo) => AsignacionRec | undefined
+  /**
+   * Escribe en la fecha actual los ítems de una plantilla copiada de otro
+   * día (ya filtrados por el usuario en el preview). Upsert por objetivo:
+   * pisa la asignación existente si la había. Devuelve false si la base
+   * rechazó (error visible en `errorPlan`).
+   */
+  aplicarCopiaPlan: (items: ItemCopiaPlan[]) => Promise<boolean>
 }
 
 export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
@@ -518,6 +527,23 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
 
   asignacionDe: (objetivoId) =>
     get().asignaciones.find((a) => a.fecha === get().fecha && a.objetivoId === objetivoId),
+
+  aplicarCopiaPlan: async (items) => {
+    if (items.length === 0) return true
+    set({ guardando: true, errorPlan: null })
+    try {
+      const escritas = await copiarAsignaciones(get().fecha, items, usuarioActualId() ?? '')
+      const escritos = new Set(items.map((i) => i.objetivoId))
+      set((st) => ({
+        guardando: false,
+        asignaciones: [...st.asignaciones.filter((a) => !escritos.has(a.objetivoId)), ...escritas],
+      }))
+      return true
+    } catch (e) {
+      set({ guardando: false, errorPlan: mensaje(e) })
+      return false
+    }
+  },
 }))
 
 /**
