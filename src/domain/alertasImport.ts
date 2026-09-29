@@ -23,6 +23,9 @@ export type TipoAlerta =
   | 'tipo_instalacion_desconocido'
   | 'campo_desconocido_instalacion'
   | 'instalacion_sin_coordenadas'
+  | 'visita_sin_fecha'
+  | 'visita_pozo_sin_match'
+  | 'duplicado_visita'
 
 export interface AlertaImport {
   tipo: TipoAlerta

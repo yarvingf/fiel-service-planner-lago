@@ -14,9 +14,11 @@ const RUTA = resolve(__dirname, '../../Excel Data.xlsx')
 const hayArchivo = existsSync(RUTA)
 
 describe.skipIf(!hayArchivo)('importadorExcel con el archivo real', () => {
-  it('importa el universo de pozos e instalaciones sin perder filas', async () => {
+  // Timeout amplio: parsear ~1400 filas de xlsx puede pasar los 5s por
+  // defecto cuando el suite corre los 9 archivos en paralelo.
+  it('importa el universo de pozos e instalaciones sin perder filas', { timeout: 30000 }, async () => {
     const buffer = readFileSync(RUTA)
-    const { pozos, instalaciones, alertas } = await importarExcel(
+    const { pozos, instalaciones, visitas, alertas } = await importarExcel(
       buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer,
     )
 
@@ -51,5 +53,21 @@ describe.skipIf(!hayArchivo)('importadorExcel con el archivo real', () => {
       porGrupo.set(k, (porGrupo.get(k) ?? 0) + 1)
     }
     expect([...porGrupo.values()].every((n) => n === 1)).toBe(true)
+
+    // Visitas de campo (hojas GL/BES): volumen aproximado, sin duplicados por
+    // llave de negocio, y la mayoría debería resolver a un pozo conocido.
+    const visitasGL = visitas.filter((v) => v.tipo === 'GL')
+    const visitasBES = visitas.filter((v) => v.tipo === 'BES')
+    expect(visitasGL.length).toBeGreaterThan(3000)
+    expect(visitasBES.length).toBeGreaterThan(2000)
+
+    const idsUnicos = new Set(visitas.map((v) => v.id))
+    expect(idsUnicos.size).toBe(visitas.length)
+
+    // La mayoría debe resolver a un pozo conocido; el resto son códigos
+    // legítimos que no están en la foto actual de "Pozos" (reemplazados o
+    // descontinuados) — se guardan igual con pozoId=null y alerta.
+    const conMatch = visitas.filter((v) => v.pozoId !== null).length
+    expect(conMatch / visitas.length).toBeGreaterThan(0.9)
   })
 })

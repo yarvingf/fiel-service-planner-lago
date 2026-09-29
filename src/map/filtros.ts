@@ -65,7 +65,11 @@ export function expresionPozos(f: Filtros, idsAsignados?: ReadonlySet<string> | 
   return partes as FilterSpecification
 }
 
-function expresionInstalaciones(f: Filtros, idsAsignados?: ReadonlySet<string> | null): FilterSpecification {
+function expresionInstalaciones(
+  f: Filtros,
+  idsAsignados?: ReadonlySet<string> | null,
+  idsAsociadas?: ReadonlySet<string> | null,
+): FilterSpecification {
   // tiposInst null = todos los tipos; [] (estado inicial) = ninguno — el
   // 'in' contra una lista vacía ya no calza con ningún tipo, así que no
   // hace falta un booleano aparte para "ocultar todo".
@@ -74,6 +78,12 @@ function expresionInstalaciones(f: Filtros, idsAsignados?: ReadonlySet<string> |
     perteneceA('tipo', f.tiposInst),
     ['in', ['get', 'campo'], ['literal', f.campos]],
     criterioAsignacion(f, 'inst|', idsAsignados),
+    // Solo instalaciones que algún pozo visible referencia via efId/mgId.
+    // `idsAsociadas` se calcula JS-side (las expresiones no pueden hacer
+    // join entre fuentes); set vacío = no se ve ninguna instalación.
+    f.soloInstAsociadas && idsAsociadas
+      ? ['in', ['get', 'id'], ['literal', [...idsAsociadas]]]
+      : !f.soloInstAsociadas,
   ]
 }
 
@@ -86,9 +96,14 @@ export function expresionLineas(f: Filtros, idsAsignados?: ReadonlySet<string> |
   return ['all', expresionPozos(f, idsAsignados), perteneceA('tipoLinea', f.tiposInst)] as FilterSpecification
 }
 
-export function aplicarFiltros(map: MaplibreMap, f: Filtros, idsAsignados?: ReadonlySet<string> | null): void {
+export function aplicarFiltros(
+  map: MaplibreMap,
+  f: Filtros,
+  idsAsignados?: ReadonlySet<string> | null,
+  idsInstAsociadas?: ReadonlySet<string> | null,
+): void {
   const filtroPozos = expresionPozos(f, idsAsignados)
-  const filtroInst = expresionInstalaciones(f, idsAsignados)
+  const filtroInst = expresionInstalaciones(f, idsAsignados, idsInstAsociadas)
   for (const capa of [ID_CAPA_POZOS, ID_CAPA_POZOS_ETIQUETAS]) {
     if (map.getLayer(capa)) map.setFilter(capa, filtroPozos)
   }

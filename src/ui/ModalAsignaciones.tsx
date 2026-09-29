@@ -31,8 +31,11 @@ interface Props {
  * Detalle del plan del día: asignaciones agrupadas por cuadrilla. Todas las
  * ediciones de fila (actividad, nota, prioridad y los toggles SI/NO) se
  * acumulan LOCALES en `pendientes` — el checklist responde al instante sin
- * un request por clic — y se mandan en un solo lote con "Aplicar" o al
- * cerrar el modal. Clic en el código → vuela el mapa.
+ * un request por clic. Se aplican en un solo lote con "Aplicar", o al
+ * cerrar el modal (Listo/×/fondo) si el usuario confirma que quiere
+ * aplicarlas — si hay pendientes sin confirmar, se pregunta antes de cerrar
+ * (aplicar, descartar, o quedarse a seguir editando). Clic en el código →
+ * vuela el mapa.
  */
 export function ModalAsignaciones({ abierto, onCerrar }: Props) {
   const {
@@ -87,9 +90,31 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
     if (ok) setPendientes(new Map())
     return ok
   }
-  /** Cierra solo si el lote se aplicó (si falla, queda abierto con el error visible). */
+  /**
+   * Al cerrar (Listo / × / fondo): si hay cambios sin aplicar, pregunta
+   * antes de perderlos o guardarlos — ya no se aplican solos en silencio.
+   * Aceptar = aplicar y cerrar (si falla, queda abierto con el error visible).
+   * Cancelar del primer aviso = pregunta si descartarlos; cancelar el
+   * segundo aviso = se queda en el modal sin cerrar.
+   */
   const cerrar = async () => {
-    if (await aplicarPendientes()) onCerrar()
+    if (pendientes.size === 0) {
+      onCerrar()
+      return
+    }
+    const aplicar = window.confirm(
+      `Tienes ${pendientes.size} cambio(s) sin aplicar.\n\nAceptar = aplicarlos y cerrar.\nCancelar = elegir si descartarlos.`,
+    )
+    if (aplicar) {
+      if (await aplicarPendientes()) onCerrar()
+      return
+    }
+    const descartar = window.confirm(
+      `¿Descartar los ${pendientes.size} cambio(s) sin aplicar y cerrar igual?`,
+    )
+    if (!descartar) return // se queda en el modal, nada cambia
+    setPendientes(new Map())
+    onCerrar()
   }
 
   // Cuadrillas plegadas (ahorra espacio con muchas asignaciones); '__huerfanos__'

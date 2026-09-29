@@ -1,11 +1,22 @@
 import { supabase, MENSAJE_FALTA_CONFIG } from './supabaseClient'
 import type { Cuadrilla } from '@/domain/cuadrilla'
+import type { Instalacion } from '@/domain/instalacion'
+import type { PozoCompletacion, PozoConCompletaciones } from '@/domain/pozo'
+import type { VisitaCampo } from '@/domain/visitaCampo'
+import type { DiffUniverso, Universo } from './sincronizarUniverso'
 import type { Database } from './database.types'
 
 type FilaCuadrilla = Database['public']['Tables']['cuadrillas']['Row']
 type FilaAsignacion = Database['public']['Tables']['asignaciones']['Row']
 type InsertAsignacion = Database['public']['Tables']['asignaciones']['Insert']
 type UpdateAsignacion = Database['public']['Tables']['asignaciones']['Update']
+type FilaInstalacion = Database['public']['Tables']['instalaciones']['Row']
+type FilaPozo = Database['public']['Tables']['pozos']['Row']
+type FilaCompletacion = Database['public']['Tables']['pozo_completaciones']['Row']
+type InsertCompletacion = Database['public']['Tables']['pozo_completaciones']['Insert']
+type InsertImportCambio = Database['public']['Tables']['import_cambios']['Insert']
+type FilaVisita = Database['public']['Tables']['visitas_campo']['Row']
+type InsertVisita = Database['public']['Tables']['visitas_campo']['Insert']
 
 /** Una asignación ya traducida al modelo de la app (fecha en YYYY-MM-DD). */
 export interface AsignacionRemota {
@@ -176,4 +187,358 @@ export async function borrarAsignacionesCuadrilla(fecha: string, cuadrillaId: st
     .eq('fecha', fecha)
     .eq('cuadrilla_id', cuadrillaId)
   if (error) throw traducirError(error)
+}
+
+// ---------------------------------------------------------------------------
+// Universo pozos/instalaciones/completaciones (sync Excel ↔ Supabase, 0005)
+// ---------------------------------------------------------------------------
+
+const PAGINA = 1000
+
+/**
+ * PostgREST limita cada respuesta (~1000 filas); pagina hasta agotar. Pide
+ * el total en la primera página (`count: 'exact'`, ver llamadores) y lanza
+ * el resto de las páginas en paralelo en vez de una por una — con tablas
+ * grandes (visitas_campo, ~10k filas) evita 10+ round-trips secuenciales.
+ */
+async function obtenerTodo<T>(
+  armar: (desde: number, hasta: number) => PromiseLike<{ data: T[] | null; count: number | null; error: { code?: string; message: string } | null }>,
+): Promise<T[]> {
+  const primera = await armar(0, PAGINA - 1)
+  if (primera.error) throw traducirError(primera.error)
+  const datos = primera.data ?? []
+  const total = primera.count ?? datos.length
+  if (total <= datos.length) return datos
+
+  const restantes: ReturnType<typeof armar>[] = []
+  for (let desde = PAGINA; desde < total; desde += PAGINA) restantes.push(armar(desde, desde + PAGINA - 1))
+  const resultados = await Promise.all(restantes)
+
+  const todo = [...datos]
+  for (const r of resultados) {
+    if (r.error) throw traducirError(r.error)
+    todo.push(...(r.data ?? []))
+  }
+  return todo
+}
+
+function filaAInstalacion(f: FilaInstalacion): Instalacion {
+  return {
+    id: f.id,
+    tipo: f.tipo,
+    codigo: f.codigo,
+    campo: f.campo,
+    lat: f.lat,
+    lon: f.lon,
+    esStub: f.es_stub,
+    activo: f.activo,
+  }
+}
+
+function filaACompletacion(f: FilaCompletacion): PozoCompletacion {
+  return {
+    id: f.id,
+    pozoId: f.pozo_id,
+    nbYacimiento: f.nb_yacimiento,
+    coa: f.coa,
+    metodo: f.metodo,
+    cat: f.cat,
+    bnpd: f.bnpd,
+    bnpdFecha: f.bnpd_fecha ? new Date(`${f.bnpd_fecha}T00:00:00`) : null,
+    pot: f.pot,
+    edo: f.edo,
+  }
+}
+
+function filaAPozo(f: FilaPozo, completaciones: PozoCompletacion[]): PozoConCompletaciones {
+  return {
+    id: f.id,
+    campo: f.campo,
+    numero: f.numero,
+    reemplazo: (f.reemplazo || null) as PozoConCompletaciones['reemplazo'],
+    codigo: f.codigo,
+    lat: f.lat,
+    lon: f.lon,
+    efId: f.ef_id,
+    mgId: f.mg_id,
+    pcId: f.pc_id,
+    pbesId: f.pbes_id,
+    reemplazado: f.reemplazado,
+    activo: f.activo,
+    completaciones,
+  }
+}
+
+function instalacionAFila(i: Instalacion) {
+  return {
+    id: i.id, tipo: i.tipo, codigo: i.codigo, campo: i.campo,
+    lat: i.lat, lon: i.lon, es_stub: i.esStub, activo: i.activo,
+  }
+}
+
+function pozoAFila(p: PozoConCompletaciones) {
+  return {
+    id: p.id, campo: p.campo, numero: p.numero, reemplazo: (p.reemplazo ?? '') as Database['public']['Tables']['pozos']['Row']['reemplazo'],
+    codigo: p.codigo, lat: p.lat, lon: p.lon,
+    ef_id: p.efId, mg_id: p.mgId, pc_id: p.pcId, pbes_id: p.pbesId,
+    reemplazado: p.reemplazado, activo: p.activo,
+  }
+}
+
+function completacionAFila(c: PozoCompletacion): InsertCompletacion {
+  return {
+    id: c.id,
+    pozo_id: c.pozoId,
+    nb_yacimiento: c.nbYacimiento,
+    coa: c.coa,
+    metodo: c.metodo,
+    cat: c.cat,
+    bnpd: c.bnpd,
+    bnpd_fecha: c.bnpdFecha ? c.bnpdFecha.toISOString().slice(0, 10) : null,
+    pot: c.pot,
+    edo: c.edo,
+    // La sync es la fuente de verdad del Excel: si reescribe el coa, la marca
+    // vuelve a 'excel' — solo queda 'mensaje' lo último tocado por el modal COA.
+    coa_origen: 'excel',
+    coa_fecha: null,
+  }
+}
+
+/**
+ * Aplica un estatus COA reportado por mensaje operativo a las completaciones
+ * dadas (el modal marca TODAS las arenas del pozo con el estatus reportado).
+ * Marca coa_origen='mensaje' + timestamp para distinguirlo del dato del Excel.
+ */
+export async function actualizarCoaCompletaciones(ids: string[], coa: 'Abierto' | 'Cerrado'): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await cliente()
+    .from('pozo_completaciones')
+    .update({ coa, coa_origen: 'mensaje', coa_fecha: new Date().toISOString() })
+    .in('id', ids)
+  if (error) throw traducirError(error)
+}
+
+function filaAVisita(f: FilaVisita): VisitaCampo {
+  return {
+    id: f.id,
+    tipo: f.tipo,
+    fecha: new Date(`${f.fecha}T00:00:00Z`),
+    pozoTexto: f.pozo_texto,
+    pozoId: f.pozo_id,
+    cuadrilla: f.cuadrilla,
+    campo: f.campo,
+    tipoActividad: f.tipo_actividad,
+    estadoInicial: f.estado_inicial,
+    estadoFinal: f.estado_final,
+    comentarios: f.comentarios,
+    horaInicio: f.hora_inicio,
+    horaFin: f.hora_fin,
+    datosExtra: f.datos_extra ?? {},
+  }
+}
+
+function visitaAFila(v: VisitaCampo): InsertVisita {
+  return {
+    id: v.id,
+    tipo: v.tipo,
+    fecha: v.fecha.toISOString().slice(0, 10),
+    pozo_texto: v.pozoTexto,
+    pozo_id: v.pozoId,
+    cuadrilla: v.cuadrilla,
+    campo: v.campo,
+    tipo_actividad: v.tipoActividad,
+    estado_inicial: v.estadoInicial,
+    estado_final: v.estadoFinal,
+    comentarios: v.comentarios,
+    hora_inicio: v.horaInicio,
+    hora_fin: v.horaFin,
+    datos_extra: v.datosExtra,
+  }
+}
+
+/** El universo completo persistido: instalaciones + pozos con sus arenas + visitas de campo. */
+export async function obtenerUniverso(): Promise<Universo> {
+  const c = cliente()
+  const [instFilas, pozoFilas, compFilas, visitaFilas] = await Promise.all([
+    obtenerTodo<FilaInstalacion>((d, h) => c.from('instalaciones').select('*', { count: 'exact' }).range(d, h)),
+    obtenerTodo<FilaPozo>((d, h) => c.from('pozos').select('*', { count: 'exact' }).range(d, h)),
+    obtenerTodo<FilaCompletacion>((d, h) => c.from('pozo_completaciones').select('*', { count: 'exact' }).range(d, h)),
+    obtenerTodo<FilaVisita>((d, h) => c.from('visitas_campo').select('*', { count: 'exact' }).range(d, h)),
+  ])
+  const compsPorPozo = new Map<string, PozoCompletacion[]>()
+  for (const f of compFilas) {
+    const comp = filaACompletacion(f)
+    const arr = compsPorPozo.get(comp.pozoId)
+    if (arr) arr.push(comp)
+    else compsPorPozo.set(comp.pozoId, [comp])
+  }
+  return {
+    instalaciones: instFilas.map(filaAInstalacion),
+    pozos: pozoFilas.map((f) => filaAPozo(f, compsPorPozo.get(f.id) ?? [])),
+    visitas: visitaFilas.map(filaAVisita),
+  }
+}
+
+const TANDA = 500
+function enTandas<T>(arr: T[], tamano = TANDA): T[][] {
+  const tandas: T[][] = []
+  for (let i = 0; i < arr.length; i += tamano) tandas.push(arr.slice(i, i + tamano))
+  return tandas
+}
+
+/**
+ * Aplica un DiffUniverso a la base, en orden de dependencia:
+ * tipos nuevos → instalaciones → pozos → completaciones → soft-deletes →
+ * auditoría (importaciones + import_cambios).
+ *
+ * `nuevo` es el universo completo recién parseado (no solo el diff): se usa
+ * para garantizar, de forma defensiva, que todo pozo referenciado por una
+ * completación nueva/actualizada se upsertea aunque el diff no lo marcara
+ * como cambiado — protege contra violar la FK pozo_completaciones→pozos si
+ * la base de comparación de `calcularDiff` estuviera desactualizada.
+ */
+export async function aplicarDiffUniverso(
+  diff: DiffUniverso,
+  nuevo: Universo,
+  archivo: string,
+  nAlertas: number,
+): Promise<void> {
+  const c = cliente()
+
+  // Pozos "tocados": los marcados nuevos/actualizados por el diff, más
+  // cualquiera -aunque no haya cambiado a nivel de sus propios campos-
+  // referenciado por una completación nueva/actualizada. Necesario para
+  // garantizar su fila exista antes del paso 3 (FK pozo_completaciones→pozos)
+  // incluso si la base de comparación de `calcularDiff` estuviera desfasada.
+  const pozoPorId = new Map(nuevo.pozos.map((p) => [p.id, p]))
+  const idsPozosTocados = new Set<string>()
+  for (const p of diff.pozosNuevos) idsPozosTocados.add(p.id)
+  for (const a of diff.pozosActualizados) idsPozosTocados.add(a.nuevo.id)
+  for (const comp of diff.compsNuevas) idsPozosTocados.add(comp.pozoId)
+  for (const a of diff.compsActualizadas) idsPozosTocados.add(a.nuevo.pozoId)
+  const pozosTocados = [...idsPozosTocados]
+    .map((id) => pozoPorId.get(id))
+    .filter((p): p is PozoConCompletaciones => p !== undefined)
+
+  // Mismo razonamiento un nivel arriba: instalaciones EF/MG/PC/PBES
+  // referenciadas por esos pozos, aunque la instalación en sí no cambió.
+  const instPorId = new Map(nuevo.instalaciones.map((i) => [i.id, i]))
+  const idsInstTocadas = new Set<string>()
+  for (const i of diff.instNuevas) idsInstTocadas.add(i.id)
+  for (const a of diff.instActualizadas) idsInstTocadas.add(a.nuevo.id)
+  for (const p of pozosTocados) {
+    for (const id of [p.efId, p.mgId, p.pcId, p.pbesId]) if (id) idsInstTocadas.add(id)
+  }
+  const instTocadas = [...idsInstTocadas]
+    .map((id) => instPorId.get(id))
+    .filter((i): i is Instalacion => i !== undefined)
+
+  // 0. Tipos de instalación nuevos en el Excel (el catálogo es abierto; el FK
+  //    de instalaciones.tipo rechazaría un tipo aún no registrado).
+  const tiposNuevos = [...new Set(instTocadas.map((i) => i.tipo))]
+  if (tiposNuevos.length > 0) {
+    const { error } = await c
+      .from('tipos_instalacion')
+      .upsert(tiposNuevos.map((t) => ({ codigo: t, descripcion: t })), { onConflict: 'codigo', ignoreDuplicates: true })
+    if (error) throw traducirError(error)
+  }
+
+  // 1. Instalaciones: upsert de las tocadas; soft-delete del resto.
+  const instUpsert = instTocadas.map(instalacionAFila)
+  for (const tanda of enTandas(instUpsert)) {
+    const { error } = await c.from('instalaciones').upsert(tanda, { onConflict: 'id' })
+    if (error) throw traducirError(error)
+  }
+  if (diff.instDesactivadas.length > 0) {
+    const { error } = await c
+      .from('instalaciones')
+      .update({ activo: false })
+      .in('id', diff.instDesactivadas.map((i) => i.id))
+    if (error) throw traducirError(error)
+  }
+
+  // 2. Pozos (ya existen las instalaciones que referencian).
+  const pozosUpsert = pozosTocados.map(pozoAFila)
+  for (const tanda of enTandas(pozosUpsert)) {
+    const { error } = await c.from('pozos').upsert(tanda, { onConflict: 'id' })
+    if (error) throw traducirError(error)
+  }
+  if (diff.pozosDesactivados.length > 0) {
+    const { error } = await c
+      .from('pozos')
+      .update({ activo: false })
+      .in('id', diff.pozosDesactivados.map((p) => p.id))
+    if (error) throw traducirError(error)
+  }
+
+  // 3. Completaciones: upsert por la llave natural (pozo_id, nb_yacimiento) —
+  //    el id posicional puede cambiar si reordenan filas del Excel.
+  const compsUpsert = [...diff.compsNuevas, ...diff.compsActualizadas.map((a) => a.nuevo)].map(completacionAFila)
+  for (const tanda of enTandas(compsUpsert)) {
+    const { error } = await c
+      .from('pozo_completaciones')
+      .upsert(tanda, { onConflict: 'pozo_id,nb_yacimiento' })
+    if (error) throw traducirError(error)
+  }
+  // Arenas eliminadas del Excel (el pozo sigue viniendo): borrado real por id
+  // de la fila persistida — el diff ya trae el objeto previo con su id.
+  for (const tanda of enTandas(diff.compsEliminadas)) {
+    const { error } = await c
+      .from('pozo_completaciones')
+      .delete()
+      .in('id', tanda.map((x) => x.id))
+    if (error) throw traducirError(error)
+  }
+
+  // 4. Visitas de campo (GL/BES): bitácora, solo upsert — nunca se borran ni
+  //    desactivan. `pozo_id` puede referenciar un pozo ya tocado arriba o
+  //    uno preexistente sin cambios; en ambos casos ya existe en la base.
+  // Lotes más chicos que el resto: cada visita lleva un `datos_extra` JSONB
+  // con decenas de columnas (BES en particular) — 500 de golpe puede exceder
+  // el statement_timeout de Supabase en la primera carga masiva.
+  const visitasUpsert = [...diff.visitasNuevas, ...diff.visitasActualizadas.map((a) => a.nuevo)].map(visitaAFila)
+  for (const tanda of enTandas(visitasUpsert, 100)) {
+    const { error } = await c.from('visitas_campo').upsert(tanda, { onConflict: 'id' })
+    if (error) throw traducirError(error)
+  }
+
+  // 5. Auditoría del import.
+  const { data: imp, error: errorImp } = await c
+    .from('importaciones')
+    .insert({
+      archivo,
+      inst_nuevas: diff.instNuevas.length,
+      inst_actualizadas: diff.instActualizadas.length,
+      inst_desactivadas: diff.instDesactivadas.length,
+      pozos_nuevos: diff.pozosNuevos.length,
+      pozos_actualizados: diff.pozosActualizados.length,
+      pozos_desactivados: diff.pozosDesactivados.length,
+      comps_nuevas: diff.compsNuevas.length,
+      comps_actualizadas: diff.compsActualizadas.length,
+      comps_eliminadas: diff.compsEliminadas.length,
+      visitas_nuevas: diff.visitasNuevas.length,
+      visitas_actualizadas: diff.visitasActualizadas.length,
+      n_alertas: nAlertas,
+    })
+    .select('id')
+    .single()
+  if (errorImp) throw traducirError(errorImp)
+
+  const filasCambio: InsertImportCambio[] = []
+  for (const cam of diff.cambios) {
+    if (cam.campos && cam.campos.length > 0) {
+      for (const f of cam.campos) {
+        filasCambio.push({
+          import_id: imp.id, entidad: cam.entidad, tipo: cam.tipo, clave: cam.clave,
+          campo: f.campo, valor_antes: f.antes, valor_despues: f.despues,
+        })
+      }
+    } else {
+      filasCambio.push({ import_id: imp.id, entidad: cam.entidad, tipo: cam.tipo, clave: cam.clave })
+    }
+  }
+  for (const tanda of enTandas(filasCambio)) {
+    const { error } = await c.from('import_cambios').insert(tanda)
+    if (error) throw traducirError(error)
+  }
 }

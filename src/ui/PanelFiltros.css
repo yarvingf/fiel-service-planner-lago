@@ -20,8 +20,8 @@
   justify-content: space-between;
   align-items: center;
   font-weight: 700;
-  font-size: 14px;
-  margin-bottom: 8px;
+  font-size: 13px;
+  margin-bottom: 4px;
 }
 .pf-contador {
   font-size: 11px;
@@ -29,15 +29,41 @@
   color: #64748b;
 }
 
-.pf-seccion { margin-bottom: 10px; }
-.pf-etiqueta {
+/* Sección colapsable: fila-título siempre visible con el estado resumido */
+.pf-seccion { border-bottom: 1px solid #e2e8f0; }
+.pf-seccion:last-of-type { border-bottom: none; }
+
+.pf-seccion-titulo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #64748b;
-  margin-bottom: 4px;
+  cursor: pointer;
+  text-align: left;
 }
+.pf-seccion-titulo:hover { color: #334155; }
+.pf-flecha { width: 10px; font-size: 9px; }
+.pf-resumen {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #94a3b8;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pf-seccion-cuerpo { padding: 2px 0 8px; }
 
 .pf-chips {
   display: flex;
@@ -90,7 +116,9 @@
   align-items: center;
   gap: 6px;
   font-weight: 600;
+  font-size: 12px;
   cursor: pointer;
+  margin-top: 4px;
 }
 
 .pf-estilo-lineas {
@@ -119,7 +147,7 @@
 }
 
 .pf-leyenda {
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 10px;
   color: #94a3b8;
   line-height: 1.4;

@@ -1,5 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useDatosStore } from '@/state/datosStore'
+import { useAsignacionesStore, type IdObjetivo } from '@/state/asignacionesStore'
+import { ModalCoa } from './ModalCoa'
 import { HerramientaMenu } from './HerramientaMenu'
 import { CapturaMenu } from './CapturaMenu'
 import { mapaInstancia } from '@/map/mapaInstancia'
@@ -28,11 +31,28 @@ function puntaje(q: string, codigo: string, extra: string): number {
   return 0
 }
 
+const objetivoIdDe = (r: Resultado): IdObjetivo => `${r.kind === 'pozo' ? 'pozo' : 'inst'}|${r.id}`
+
 export function BarraHerramientas() {
-  const { pozos, instalaciones, alertas, cargando, cargarDesdeArchivo, seleccionar } = useDatosStore()
+  const { pozos, instalaciones, alertas, cargando, error, prepararSincronizacion, seleccionar } = useDatosStore()
+  const {
+    cuadrillas, cuadrillaActiva, asignaciones, fecha, seleccion,
+    alternarObjetivo, agregarASeleccion, iniciarAsignacion,
+  } = useAsignacionesStore()
   const [query, setQuery] = useState('')
+  const [modalCoa, setModalCoa] = useState(false)
   const inputArchivo = useRef<HTMLInputElement>(null)
   const instPorId = useMemo(() => new Map(instalaciones.map((i) => [i.id, i])), [instalaciones])
+
+  const selSet = useMemo(() => new Set(seleccion), [seleccion])
+  const cuadrillaPorId = useMemo(() => new Map(cuadrillas.map((c) => [c.id, c])), [cuadrillas])
+  const cuadrillaNombre = cuadrillaActiva ? cuadrillaPorId.get(cuadrillaActiva)?.nombre : undefined
+  /** objetivoId → asignación del día, para marcar a quién pertenece cada resultado. */
+  const asignacionHoy = useMemo(() => {
+    const m = new Map<IdObjetivo, string>()
+    for (const a of asignaciones) if (a.fecha === fecha) m.set(a.objetivoId, a.cuadrillaId)
+    return m
+  }, [asignaciones, fecha])
 
   const resultados = useMemo<Resultado[]>(() => {
     const q = norm(query.trim())
@@ -77,10 +97,13 @@ export function BarraHerramientas() {
   const alArchivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (file) await cargarDesdeArchivo(file)
+    // Parsea y calcula el diff contra Supabase; no escribe nada todavía —
+    // el modal de preview (ModalSincronizacion) confirma o cancela.
+    if (file) await prepararSincronizacion(file)
   }
 
   return (
+    <>
     <div className="barra-herramientas">
       <div className="bh-busqueda">
         <input
@@ -92,14 +115,63 @@ export function BarraHerramientas() {
         />
         {resultados.length > 0 && (
           <ul className="bh-resultados">
-            {resultados.map((r) => (
-              <li key={`${r.kind}-${r.id}`}>
-                <button type="button" onClick={() => irA(r)}>
-                  <b>{r.codigo}</b>
-                  <span>{r.detalle}</span>
+            {resultados.length > 1 && (
+              <li className="bh-res-todos">
+                <button
+                  type="button"
+                  onClick={() => agregarASeleccion(resultados.map(objetivoIdDe))}
+                >
+                  + Añadir los {resultados.length} a la selección
                 </button>
               </li>
-            ))}
+            )}
+            {resultados.map((r) => {
+              const oid = objetivoIdDe(r)
+              const enSeleccion = selSet.has(oid)
+              const dueno = asignacionHoy.get(oid)
+              const cuadrillaDe = dueno ? cuadrillaPorId.get(dueno) : undefined
+              const yaDeActiva = dueno !== undefined && dueno === cuadrillaActiva
+              return (
+                <li key={`${r.kind}-${r.id}`}>
+                  <button type="button" className="bh-res" onClick={() => irA(r)}>
+                    <b>
+                      {cuadrillaDe && (
+                        <i
+                          className="bh-res-punto"
+                          style={{ background: cuadrillaDe.color }}
+                          title={`Asignado a ${cuadrillaDe.nombre}`}
+                        />
+                      )}
+                      {r.codigo}
+                    </b>
+                    <span>{r.detalle}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bh-res-acc${enSeleccion ? ' bh-res-acc-on' : ''}`}
+                    title={enSeleccion ? 'Quitar de la selección' : 'Añadir a la selección'}
+                    onClick={() => alternarObjetivo(oid)}
+                  >
+                    {enSeleccion ? '✓' : '+'}
+                  </button>
+                  {cuadrillaActiva && (
+                    <button
+                      type="button"
+                      className="bh-res-acc bh-res-asignar"
+                      disabled={yaDeActiva}
+                      title={
+                        yaDeActiva
+                          ? `Ya asignado a ${cuadrillaNombre}`
+                          : `Asignar a ${cuadrillaNombre ?? 'la cuadrilla activa'}`
+                      }
+                      onClick={() => iniciarAsignacion([oid])}
+                    >
+                      {yaDeActiva ? '✓' : '→'}
+                    </button>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>
@@ -110,10 +182,19 @@ export function BarraHerramientas() {
       <button
         type="button"
         className="bh-boton"
+        title="Pegar mensaje COA (🟢/🔴) para actualizar estatus de pozos"
+        onClick={() => setModalCoa(true)}
+      >
+        🟢🔴 Estatus
+      </button>
+
+      <button
+        type="button"
+        className="bh-boton"
         disabled={cargando}
         onClick={() => inputArchivo.current?.click()}
       >
-        {cargando ? 'Importando…' : 'Importar Excel'}
+        {cargando ? 'Analizando…' : 'Importar Excel'}
       </button>
       <input
         ref={inputArchivo}
@@ -133,5 +214,15 @@ export function BarraHerramientas() {
         Alertas ({alertas.length})
       </button>
     </div>
+
+    {error && (
+      <div className="bh-error" role="alert">
+        {error}
+        <button type="button" onClick={() => useDatosStore.setState({ error: null })} aria-label="Cerrar">×</button>
+      </div>
+    )}
+
+    {modalCoa && createPortal(<ModalCoa onCerrar={() => setModalCoa(false)} />, document.body)}
+    </>
   )
 }

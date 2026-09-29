@@ -1,4 +1,7 @@
-import ExcelJS from 'exceljs'
+// Solo tipos en el top-level: el runtime de ExcelJS (pesado) se importa de
+// forma dinámica dentro de importarExcel(), así no viaja en el bundle
+// inicial — se descarga solo cuando el usuario realmente importa un archivo.
+import type ExcelJS from 'exceljs'
 import {
   claveNormalizadaEF,
   claveNormalizadaInstalacion,
@@ -19,10 +22,12 @@ import {
 } from '@/domain/pozo'
 import { esTipoInstalacionConocido, type Instalacion } from '@/domain/instalacion'
 import { coordenadasFueraDeRango, crearAlerta, type AlertaImport } from '@/domain/alertasImport'
+import { claveVisita, type TipoVisita, type VisitaCampo } from '@/domain/visitaCampo'
 
 export interface ResultadoImport {
   pozos: PozoConCompletaciones[]
   instalaciones: Instalacion[]
+  visitas: VisitaCampo[]
   alertas: AlertaImport[]
 }
 
@@ -423,10 +428,139 @@ export function importarPozos(
   return { pozos: [...pozosPorCodigo.values()], alertas }
 }
 
+// --- Visitas de campo (hojas "GL" y "BES": bitácora de inspecciones) ---
+
+/** Estas dos columnas varían de nombre entre GL y BES; el resto de las claves usadas coinciden ya normalizadas. */
+const ALIAS_VISITA: Record<TipoVisita, { estadoInicial: string; estadoFinal: string; horaFin: string }> = {
+  GL: { estadoInicial: 'ESTADO POZO INICIAL', estadoFinal: 'ESTADO POZO FINAL', horaFin: 'HORA FIN' },
+  BES: { estadoInicial: 'ESTADO INICIAL DEL POZO', estadoFinal: 'ESTADO FINAL DEL POZO', horaFin: 'HORA FINAL' },
+}
+
+function normalizarCodigoPozo(s: string): string {
+  return s.trim().toUpperCase().replace(/\s+/g, '')
+}
+
+/** Hora como Date (Excel guarda horas puras con fecha base 1899-12-30) o texto libre ("S/I"). */
+function horaTexto(v: ValorCelda): string | null {
+  if (v === null) return null
+  if (v instanceof Date) {
+    const hh = String(v.getUTCHours()).padStart(2, '0')
+    const mm = String(v.getUTCMinutes()).padStart(2, '0')
+    return `${hh}:${mm}`
+  }
+  const s = String(v).trim()
+  return s === '' ? null : s
+}
+
+function valorPlano(v: ValorCelda): string | number | boolean {
+  if (v instanceof Date) return v.toISOString()
+  if (typeof v === 'number' || typeof v === 'boolean') return v
+  return String(v)
+}
+
+/**
+ * Resuelve el pozo real referenciado por una visita: primero por código
+ * exacto (normalizado), y si no calza, por pozo físico (campo+número) tomando
+ * el vigente — una visita vieja puede referenciar una letra de reemplazo que
+ * ya no es la activa, y sigue queriendo apuntar al mismo pozo físico.
+ */
+function resolverPozoDeVisita(
+  pozoTexto: string,
+  campo: Campo | null,
+  pozosPorCodigoExacto: ReadonlyMap<string, PozoConCompletaciones>,
+  pozosPorFisicoVigente: ReadonlyMap<string, PozoConCompletaciones>,
+): string | null {
+  const exacto = pozosPorCodigoExacto.get(normalizarCodigoPozo(pozoTexto))
+  if (exacto) return exacto.id
+  if (!campo) return null
+  const parsed = parsearCodigoPozo(pozoTexto, campo)
+  if (!parsed) return null
+  return pozosPorFisicoVigente.get(clavePozoFisico(parsed))?.id ?? null
+}
+
+/** Columnas ya extraídas a campos propios de VisitaCampo: no van a datosExtra. */
+function clavesCoreVisita(tipo: TipoVisita): Set<string> {
+  const alias = ALIAS_VISITA[tipo]
+  return new Set(['FECHA', 'POZO', 'CUADRILLA', 'TIPO DE ACTIVIDAD', 'HORA INICIO', 'COMENTARIOS OPERACIONALES', alias.estadoInicial, alias.estadoFinal, alias.horaFin])
+}
+
+function importarVisitas(
+  filas: Record<string, ValorCelda>[],
+  numerosFila: number[],
+  tipo: TipoVisita,
+  hoja: string,
+  pozosPorCodigoExacto: ReadonlyMap<string, PozoConCompletaciones>,
+  pozosPorFisicoVigente: ReadonlyMap<string, PozoConCompletaciones>,
+): { visitas: VisitaCampo[]; alertas: AlertaImport[] } {
+  const alertas: AlertaImport[] = []
+  const visitas: VisitaCampo[] = []
+  const vistas = new Set<string>()
+  const alias = ALIAS_VISITA[tipo]
+  const core = clavesCoreVisita(tipo)
+
+  filas.forEach((fila, i) => {
+    const filaNum = numerosFila[i]
+    const pozoTexto = texto(fila['POZO'])
+    if (!pozoTexto) return // fila sin pozo: arrastre de fórmula o fila vacía, no es una visita real
+
+    const fechaRaw = fila['FECHA']
+    let fecha: Date | null = null
+    if (fechaRaw instanceof Date) fecha = fechaRaw
+    else if (fechaRaw !== null && String(fechaRaw).trim() !== '') {
+      const d = new Date(String(fechaRaw))
+      if (!isNaN(d.getTime())) fecha = d
+    }
+    if (!fecha) {
+      alertas.push(crearAlerta('visita_sin_fecha', hoja, filaNum, 'Visita sin fecha válida — no se importó', pozoTexto))
+      return
+    }
+
+    const cuadrilla = texto(fila['CUADRILLA']) ?? ''
+    const clave = claveVisita({ tipo, fecha, pozoTexto, cuadrilla })
+    if (vistas.has(clave)) {
+      alertas.push(crearAlerta('duplicado_visita', hoja, filaNum, 'Visita duplicada tras normalización (misma fecha/pozo/cuadrilla); se conserva la primera fila', pozoTexto))
+      return
+    }
+    vistas.add(clave)
+
+    const campo = inferirCampoDesdeCodigo(pozoTexto)
+    const pozoId = resolverPozoDeVisita(pozoTexto, campo, pozosPorCodigoExacto, pozosPorFisicoVigente)
+    if (!pozoId) {
+      alertas.push(crearAlerta('visita_pozo_sin_match', hoja, filaNum, `Pozo "${pozoTexto}" no calza con ningún pozo del universo — visita guardada sin vincular`, pozoTexto))
+    }
+
+    const datosExtra: Record<string, string | number | boolean> = {}
+    for (const [k, v] of Object.entries(fila)) {
+      if (core.has(k) || v === null || v === '') continue
+      datosExtra[k] = valorPlano(v)
+    }
+
+    visitas.push({
+      id: `visita-${clave}`,
+      tipo,
+      fecha,
+      pozoTexto,
+      pozoId,
+      cuadrilla,
+      campo,
+      tipoActividad: texto(fila['TIPO DE ACTIVIDAD']),
+      estadoInicial: texto(fila[alias.estadoInicial]),
+      estadoFinal: texto(fila[alias.estadoFinal]),
+      comentarios: texto(fila['COMENTARIOS OPERACIONALES']),
+      horaInicio: horaTexto(fila['HORA INICIO']),
+      horaFin: horaTexto(fila[alias.horaFin]),
+      datosExtra,
+    })
+  })
+
+  return { visitas, alertas }
+}
+
 // --- Orquestador .xlsx ---
 
 export async function importarExcel(buffer: ArrayBuffer): Promise<ResultadoImport> {
-  const wb = new ExcelJS.Workbook()
+  const { default: ExcelJSRuntime } = await import('exceljs')
+  const wb = new ExcelJSRuntime.Workbook()
   await wb.xlsx.load(buffer)
 
   const wsInst = wb.getWorksheet('Instalaciones')
@@ -439,5 +573,21 @@ export async function importarExcel(buffer: ArrayBuffer): Promise<ResultadoImpor
   const { instalaciones, alertas: alertasInst } = importarInstalaciones(inst.filas, inst.numerosFila)
   const { pozos, alertas: alertasPozos } = importarPozos(poz.filas, poz.numerosFila, instalaciones)
 
-  return { pozos, instalaciones, alertas: [...alertasInst, ...alertasPozos] }
+  // Hojas "GL"/"BES": bitácora de visitas — opcionales, no todo archivo las trae.
+  const pozosPorCodigoExacto = new Map(pozos.map((p) => [normalizarCodigoPozo(p.codigo), p] as const))
+  const pozosPorFisicoVigente = new Map(
+    pozos.filter((p) => !p.reemplazado).map((p) => [clavePozoFisico(p), p] as const),
+  )
+  const visitas: VisitaCampo[] = []
+  const alertasVisitas: AlertaImport[] = []
+  for (const tipo of ['GL', 'BES'] as const) {
+    const ws = wb.getWorksheet(tipo)
+    if (!ws) continue
+    const { filas, numerosFila } = filasComoDiccionarios(ws, 1) // encabezado en fila 1
+    const r = importarVisitas(filas, numerosFila, tipo, tipo, pozosPorCodigoExacto, pozosPorFisicoVigente)
+    visitas.push(...r.visitas)
+    alertasVisitas.push(...r.alertas)
+  }
+
+  return { pozos, instalaciones, visitas, alertas: [...alertasInst, ...alertasPozos, ...alertasVisitas] }
 }

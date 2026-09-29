@@ -43,6 +43,12 @@
   overflow-y: auto;
 }
 
+.bh-resultados li {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
 .bh-resultados button {
   display: flex;
   flex-direction: column;
@@ -61,6 +67,40 @@
 .bh-resultados button:hover { background: #f1f5f9; }
 .bh-resultados b { font-size: 13px; color: #0f172a; }
 .bh-resultados span { color: #64748b; font-size: 11px; }
+
+/* Fila de resultado: botón principal (vuela al mapa) + acciones al borde. */
+.bh-resultados button.bh-res { flex: 1; min-width: 0; }
+
+.bh-resultados button.bh-res-acc {
+  flex: 0 0 auto;
+  width: auto;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  font-weight: 700;
+  color: #475569;
+}
+.bh-resultados button.bh-res-acc-on { color: #2563eb; }
+.bh-resultados button.bh-res-asignar { color: var(--hud-navy); }
+.bh-resultados button.bh-res-acc:disabled { opacity: 0.45; cursor: default; }
+
+.bh-res-punto {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.bh-resultados .bh-res-todos {
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+}
+.bh-resultados .bh-res-todos button {
+  color: #2563eb;
+  font-weight: 600;
+}
 
 .bh-boton {
   border: 1px solid #e2e8f0;
@@ -94,4 +134,33 @@
   color: #0f172a;
   font-size: 13px;
   cursor: pointer;
+}
+
+.bh-error {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(600px, 90vw);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+}
+.bh-error button {
+  border: none;
+  background: transparent;
+  color: #991b1b;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  margin-left: auto;
+  flex: 0 0 auto;
 }

@@ -7,6 +7,8 @@ import {
   themeQuartz,
   type CellClassParams,
   type CellClickedEvent,
+  type CellMouseDownEvent,
+  type CellMouseOverEvent,
   type CellValueChangedEvent,
   type ColDef,
   type GridApi,
@@ -119,6 +121,9 @@ function CeldaAcciones(p: ICellRendererParams<FilaGrid>) {
 /** Columnas que no son "datos": no entran al rango Shift+flechas ni a copiar. */
 const COLS_NO_DATOS = new Set(['acciones', 'ag-Grid-SelectionColumn'])
 
+/** Columnas de texto variable que se auto-ajustan al contenido más largo visible (no se truncan con "..."). */
+const COLS_AUTOSIZE = ['codigo', 'ef', 'mg', 'metodo', 'actividad']
+
 const detalle =
   (campo: 'ef' | 'mg' | 'pot' | 'bnpd' | 'metodos') =>
   (p: ValueGetterParams<FilaGrid>) => {
@@ -200,20 +205,17 @@ export function TablaAsignaciones({
   useEffect(() => () => onSeleccionRef.current([]), [])
   /** Celdas copiadas (borde punteado estilo "marching ants" de Excel). */
   const copiadoRef = useRef<{ colId: string; ids: Set<string> } | null>(null)
-  /** Rango de celdas seleccionado con Shift+flechas (a = ancla, b = foco). */
+  /**
+   * Rango de celdas (Shift+flechas o arrastre con el mouse). Es puramente
+   * visual/de portapapeles — a propósito NO toca el checkbox de fila: son
+   * dos conceptos independientes (rango = qué copio/pego ahora, checkbox =
+   * qué queda marcado para "Aplicar a selección"). Antes estaban acoplados
+   * y un checkbox tildado de una acción anterior podía filtrarse al
+   * siguiente Ctrl+C/Ctrl+V sin que el usuario lo notara.
+   */
   const rangoRef = useRef<{ a: { f: number; c: string }; b: { f: number; c: string } } | null>(null)
-  /** Ids que el gesto de rango marcó (para contraer/deseleccionar solo esos). */
-  const rangoIdsRef = useRef<Set<string>>(new Set())
-  const enGestoRango = useRef(false)
-  const gestoSeqRef = useRef(0)
-  /** selectionChanged puede dispararse en un tick posterior al setSelected:
-   *  la bandera se suelta en el siguiente tick para que el handler la vea. */
-  const soltarGesto = () => {
-    const seq = ++gestoSeqRef.current
-    setTimeout(() => {
-      if (gestoSeqRef.current === seq) enGestoRango.current = false
-    }, 0)
-  }
+  /** true mientras el botón del mouse está presionado arrastrando un rango. */
+  const arrastrandoRef = useRef(false)
 
   const enRango = useCallback((p: CellClassParams<FilaGrid>): boolean => {
     const r = rangoRef.current
@@ -251,18 +253,18 @@ export function TablaAsignaciones({
 
   const columnas = useMemo<ColDef<FilaGrid>[]>(
     () => [
-      { headerName: 'Código', colId: 'codigo', field: 'codigo', width: 140, cellRenderer: CeldaCodigo, cellClass: clasesCelda() },
-      { headerName: 'EF', colId: 'ef', width: 72, valueGetter: detalle('ef'), cellClass: clasesCelda() },
-      { headerName: 'MG', colId: 'mg', width: 72, valueGetter: detalle('mg'), cellClass: clasesCelda() },
+      { headerName: 'Código', colId: 'codigo', field: 'codigo', minWidth: 100, cellRenderer: CeldaCodigo, cellClass: clasesCelda() },
+      { headerName: 'EF', colId: 'ef', minWidth: 60, valueGetter: detalle('ef'), cellClass: clasesCelda() },
+      { headerName: 'MG', colId: 'mg', minWidth: 60, valueGetter: detalle('mg'), cellClass: clasesCelda() },
       { headerName: 'POT', colId: 'pot', width: 62, valueGetter: detalle('pot'), cellStyle: { textAlign: 'right' }, cellClass: clasesCelda() },
       { headerName: 'BNPD', colId: 'bnpd', width: 62, valueGetter: detalle('bnpd'), cellStyle: { textAlign: 'right' }, cellClass: clasesCelda() },
-      { headerName: 'Metodo', colId: 'metodo', width: 72, valueGetter: detalle('metodos'), editable: false, cellClass: clasesCelda() },
+      { headerName: 'Metodo', colId: 'metodo', minWidth: 65, valueGetter: detalle('metodos'), editable: false, cellClass: clasesCelda() },
       {
         headerName: 'Actividad',
         colId: 'actividad',
         field: 'actividad',
         editable: true,
-        width: 170,
+        minWidth: 130,
         cellClass: clasesCelda('actividad'),
       },
       {
@@ -328,32 +330,39 @@ export function TablaAsignaciones({
     }
   }
 
-  /** Quita el rango azulito (y desmarca solo lo que el gesto había marcado). */
-  const limpiarRango = (api: GridApi<FilaGrid>, desmarcar: boolean) => {
-    if (desmarcar && rangoIdsRef.current.size > 0) {
-      enGestoRango.current = true
-      try {
-        for (const id of rangoIdsRef.current) api.getRowNode(id)?.setSelected(false)
-      } finally {
-        soltarGesto()
-      }
-    }
-    rangoIdsRef.current = new Set()
+  /** Quita el rango azulito — nunca toca checkboxes (ver comentario arriba). */
+  const limpiarRango = (api: GridApi<FilaGrid>) => {
     if (rangoRef.current) {
       rangoRef.current = null
       api.refreshCells({ force: true })
     }
   }
 
+  /** Filas cubiertas por el rango actual (por índice, no por checkbox). */
+  const nodosDelRango = (api: GridApi<FilaGrid>): IRowNode<FilaGrid>[] => {
+    const r = rangoRef.current
+    if (!r) return []
+    const [fA, fB] = r.a.f <= r.b.f ? [r.a.f, r.b.f] : [r.b.f, r.a.f]
+    const nodos: IRowNode<FilaGrid>[] = []
+    for (let i = fA; i <= fB; i++) {
+      const n = api.getDisplayedRowAtIndex(i)
+      if (n) nodos.push(n)
+    }
+    return nodos
+  }
+
   const alSeleccionar = (e: SelectionChangedEvent<FilaGrid>) => {
-    if (!enGestoRango.current) limpiarRango(e.api, false)
     // Repinta: las filas seleccionadas pasan por cellClass para su azulito.
     e.api.refreshCells({ force: true })
     onSeleccion(e.api.getSelectedRows().map((r) => r.id))
   }
 
-  /** Ctrl+C: celda enfocada, o esa columna de todas las filas marcadas.
-   *  Las celdas copiadas quedan marcadas con borde punteado hasta pegar/Esc. */
+  /**
+   * Ctrl+C: prioriza el checkbox marcado (intención explícita de "copiar de
+   * estas filas") si hay alguno; si no, usa el rango de celdas activo
+   * (Shift+flechas o arrastre); si tampoco, la celda enfocada sola. Las
+   * celdas copiadas quedan con borde punteado hasta pegar/Esc.
+   */
   const copiar = (api: GridApi<FilaGrid>) => {
     const foco = api.getFocusedCell()
     let colId = foco ? foco.column.getColId() : 'codigo'
@@ -362,9 +371,11 @@ export function TablaAsignaciones({
     const nodos =
       sel.length > 0
         ? [...sel].sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0))
-        : foco
-          ? [api.getDisplayedRowAtIndex(foco.rowIndex)].filter((n): n is IRowNode<FilaGrid> => Boolean(n))
-          : []
+        : nodosDelRango(api).length > 0
+          ? nodosDelRango(api)
+          : foco
+            ? [api.getDisplayedRowAtIndex(foco.rowIndex)].filter((n): n is IRowNode<FilaGrid> => Boolean(n))
+            : []
     if (nodos.length === 0) return
     const fmt = COPIA[colId] ?? ((v: unknown) => (v == null ? '' : String(v)))
     void navigator.clipboard.writeText(
@@ -403,15 +414,19 @@ export function TablaAsignaciones({
     const colsEditables = cols.slice(desde).filter((c) => PARSEO[c.getColId()])
     if (colsEditables.length === 0) return
 
-    // Destinos: seleccionadas en orden visual, o desde el foco hacia abajo.
+    // Destinos, misma prioridad que copiar(): checkbox marcado > rango de
+    // celdas activo > desde el foco hacia abajo.
     const sel = api.getSelectedNodes()
     const filaFoco = foco?.rowIndex ?? 0
+    const rango = nodosDelRango(api)
     const destinos =
       sel.length > 0
         ? [...sel].sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0))
-        : (Array.from({ length: api.getDisplayedRowCount() - filaFoco }, (_, i) =>
-            api.getDisplayedRowAtIndex(filaFoco + i),
-          ).filter(Boolean) as IRowNode<FilaGrid>[])
+        : rango.length > 0
+          ? rango
+          : (Array.from({ length: api.getDisplayedRowCount() - filaFoco }, (_, i) =>
+              api.getDisplayedRowAtIndex(filaFoco + i),
+            ).filter(Boolean) as IRowNode<FilaGrid>[])
 
     destinos.forEach((nodo, i) => {
       if (!nodo?.data) return
@@ -433,8 +448,7 @@ export function TablaAsignaciones({
 
   /**
    * Shift(+Ctrl)+flechas: mueve el foco y pinta el rectángulo ancla→foco
-   * (solo esas celdas en azulito, no la fila entera). Las filas cubiertas
-   * por el rango quedan marcadas para el "Aplicar a selección".
+   * (solo esas celdas en azulito, no la fila entera ni sus checkboxes).
    */
   const extender = (api: GridApi<FilaGrid>, dF: -1 | 0 | 1, dC: -1 | 0 | 1, alBorde: boolean) => {
     const total = api.getDisplayedRowCount()
@@ -451,33 +465,55 @@ export function TablaAsignaciones({
 
     const ancla = rangoRef.current?.a ?? { f: focoF, c: colsNav[iC].getColId() }
     rangoRef.current = { a: ancla, b: { f: nuevoF, c: nuevaCol } }
-
-    // Filas del rango → marcadas (solo las que el gesto agregó, para poder
-    // contraer/deseleccionar sin tocar las que el usuario marcó a mano).
-    const [fA, fB] = ancla.f <= nuevoF ? [ancla.f, nuevoF] : [nuevoF, ancla.f]
-    const siguientes = new Set<string>()
-    enGestoRango.current = true
-    try {
-      for (let i = fA; i <= fB; i++) {
-        const n = api.getDisplayedRowAtIndex(i)
-        if (!n?.data) continue
-        // Solo rastrea lo que el gesto marcó: una fila ya seleccionada a mano
-        // no entra a rangoIds → el colapso jamás la desmarca.
-        if (rangoIdsRef.current.has(n.data.id) || !n.isSelected()) {
-          siguientes.add(n.data.id)
-          if (!n.isSelected()) n.setSelected(true)
-        }
-      }
-      for (const id of rangoIdsRef.current) {
-        if (!siguientes.has(id)) api.getRowNode(id)?.setSelected(false)
-      }
-    } finally {
-      soltarGesto()
-    }
-    rangoIdsRef.current = siguientes
     api.setFocusedCell(nuevoF, nuevaCol)
     api.refreshCells({ force: true })
   }
+
+  /**
+   * Arrastre con el mouse (como Excel/Sheets): mousedown en una celda de
+   * datos ancla el rango; mientras el botón está presionado, cada celda
+   * sobre la que pasa el mouse extiende el rectángulo. Igual que el rango
+   * por teclado, no toca checkboxes — solo pinta y define qué se copia.
+   */
+  const alMouseDownCelda = (e: CellMouseDownEvent<FilaGrid>) => {
+    const ev = e.event as MouseEvent | undefined
+    if (!ev || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey) return
+    if (COLS_NO_DATOS.has(e.column.getColId()) || e.rowIndex == null) return
+    // Evita que el navegador arranque su propia selección de texto nativa
+    // mientras arrastramos el rango — se vería el highlight de texto y el
+    // azulito del rango a la vez.
+    ev.preventDefault()
+    const celda = { f: e.rowIndex, c: e.column.getColId() }
+    arrastrandoRef.current = true
+    rangoRef.current = { a: celda, b: celda }
+    apiRef.current?.refreshCells({ force: true })
+  }
+
+  const alMouseOverCelda = (e: CellMouseOverEvent<FilaGrid>) => {
+    if (!arrastrandoRef.current || !rangoRef.current) return
+    if (COLS_NO_DATOS.has(e.column.getColId()) || e.rowIndex == null) return
+    rangoRef.current = { a: rangoRef.current.a, b: { f: e.rowIndex, c: e.column.getColId() } }
+    apiRef.current?.refreshCells({ force: true })
+  }
+
+  // Suelta el arrastre al levantar el botón en cualquier parte de la
+  // ventana (no solo dentro de la grilla) — como el mouseup de Excel.
+  useEffect(() => {
+    const alSoltar = () => { arrastrandoRef.current = false }
+    window.addEventListener('mouseup', alSoltar)
+    return () => window.removeEventListener('mouseup', alSoltar)
+  }, [])
+
+  // Re-ajusta el ancho de las columnas de texto variable cada vez que
+  // cambian los datos (nuevo valor más largo/corto) — nunca quedan truncadas
+  // con "...". requestAnimationFrame: espera a que el DOM ya haya pintado
+  // las celdas nuevas antes de medir su contenido.
+  useEffect(() => {
+    const api = apiRef.current
+    if (!api) return
+    const id = requestAnimationFrame(() => api.autoSizeColumns(COLS_AUTOSIZE, false))
+    return () => cancelAnimationFrame(id)
+  }, [rows])
 
   const alKeyDown = (e: ReactKeyboardEvent) => {
     const t = e.target as HTMLElement
@@ -493,7 +529,7 @@ export function TablaAsignaciones({
         e.preventDefault()
         e.stopPropagation()
         copiadoRef.current = null
-        limpiarRango(api, true)
+        limpiarRango(api)
         api.refreshCells({ force: true })
       }
     } else if (ctrl && k === 'a') {
@@ -515,9 +551,8 @@ export function TablaAsignaciones({
       const dC = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
       extender(api, dF, dC, ctrl)
     } else if (!e.shiftKey && e.key.startsWith('Arrow')) {
-      // Flecha sin Shift (como en Excel): la selección colapsa — se desmarcan
-      // las filas que el gesto había marcado.
-      limpiarRango(api, true)
+      // Flecha sin Shift (como en Excel): el rango colapsa.
+      limpiarRango(api)
     }
   }
 
@@ -530,28 +565,16 @@ export function TablaAsignaciones({
     e.node.setSelected(!e.node.isSelected())
   }
 
-  /** Soltar Shift termina el gesto: el rectángulo se suelta (la selección
-   *  queda visible por los checkboxes) y un nuevo Shift+flecha arranca un
-   *  rango nuevo desde la celda actual — igual que en Excel. */
-  const alKeyUp = (e: ReactKeyboardEvent) => {
-    if (e.key !== 'Shift') return
-    const api = apiRef.current
-    if (api && rangoRef.current) {
-      rangoRef.current = null
-      api.refreshCells({ force: true })
-    }
-  }
-
   return (
     <div
       className="ma-grid"
       onKeyDownCapture={alKeyDown}
-      onKeyUpCapture={alKeyUp}
       onMouseDownCapture={(e) => {
-        // Clic dentro de la grilla: la selección del gesto colapsa (Excel) —
-        // excepto con Ctrl, que agrega a la selección en vez de reiniciarla.
+        // Clic dentro de la grilla: el rango previo colapsa (Excel) — excepto
+        // con Ctrl, que agrega a la selección en vez de reiniciarla. El nuevo
+        // rango (si el clic inicia un arrastre) lo pone alMouseDownCelda.
         const api = apiRef.current
-        if (api && !e.ctrlKey && !e.metaKey) limpiarRango(api, true)
+        if (api && !e.ctrlKey && !e.metaKey) limpiarRango(api)
       }}
     >
       <AgGridReact<FilaGrid>
@@ -569,8 +592,11 @@ export function TablaAsignaciones({
           apiRef.current = e.api
           onGridReady(e.api)
         }}
+        onFirstDataRendered={(e) => e.api.autoSizeColumns(COLS_AUTOSIZE, false)}
         onSelectionChanged={alSeleccionar}
         onCellClicked={alClickCelda}
+        onCellMouseDown={alMouseDownCelda}
+        onCellMouseOver={alMouseOverCelda}
         onCellValueChanged={alCambiarCelda}
         enableCellTextSelection
         overlayNoRowsTemplate="<span style='color:#94a3b8;font-style:italic'>Sin objetivos</span>"

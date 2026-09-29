@@ -101,6 +101,11 @@ export function esValorNulo(valor: string | null | undefined): boolean {
   return VALORES_NULOS_CONOCIDOS.has(valor.trim().toUpperCase())
 }
 
+/** Clave normalizada de un código de pozo (ignora mayúsculas, espacios y guiones). */
+export function claveNormalizadaPozo(codigo: string): string {
+  return normalizarCodigo(codigo)
+}
+
 /** Clave normalizada para cruzar un código de EF de la hoja Pozos contra Instalaciones. */
 export function claveNormalizadaEF(ef: string): string {
   const s = ef.trim()

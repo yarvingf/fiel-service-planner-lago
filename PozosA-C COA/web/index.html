@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parser de Pozos - Abiertos/Cerrados</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f0f2f5; color: #222; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 16px;
+  }
+  h1 { font-size: 1.3rem; margin-bottom: 12px; }
+  .card {
+    background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    width: 100%; max-width: 760px; padding: 16px; margin-bottom: 14px;
+  }
+  textarea {
+    width: 100%; min-height: 160px; border: 1px solid #ccc; border-radius: 8px;
+    padding: 10px; font-size: 1rem; resize: vertical; font-family: inherit;
+  }
+  textarea:focus { outline: 2px solid #4a90d9; border-color: transparent; }
+  .actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  button {
+    border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem;
+    cursor: pointer; font-weight: 600;
+  }
+  .primary { background: #4a90d9; color: #fff; }
+  .primary:hover { background: #357abd; }
+  .secondary { background: #e4e6eb; color: #222; }
+  .secondary:hover { background: #d5d8dd; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e4e6eb; }
+  th { background: #f7f8fa; }
+  .badge { padding: 3px 10px; border-radius: 12px; font-size: .85rem; font-weight: 600; }
+  .abierto { background: #d4edda; color: #155724; }
+  .cerrado { background: #f8d7da; color: #721c24; }
+  .sinestado { background: #fff3cd; color: #856404; }
+  .hidden { display: none; }
+  .muted { color: #777; font-size: .9rem; margin-top: 8px; }
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #333; color: #fff; padding: 10px 20px; border-radius: 8px;
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<h1>🛢️ Parser de Pozos — Abiertos / Cerrados</h1>
+
+<div class="card">
+  <textarea id="entrada" placeholder="Pega aquí el mensaje..."></textarea>
+  <div class="actions">
+    <button class="primary" onclick="procesar()">Procesar</button>
+    <button class="secondary" onclick="limpiar()">Limpiar</button>
+  </div>
+  <p class="muted">🟢 = Abierto &nbsp;|&nbsp; 🔴 = Cerrado</p>
+</div>
+
+<div class="card hidden" id="resultadoCard">
+  <div class="actions" style="margin-top:0; margin-bottom:10px;">
+    <button class="primary" onclick="copiarTSV()">Copiar para Excel</button>
+  </div>
+  <table>
+    <thead><tr><th>Pozo</th><th>Estatus</th></tr></thead>
+    <tbody id="tablaBody"></tbody>
+  </table>
+  <p class="muted">Al pegar en Excel/Google Sheets queda en 2 columnas (Pozo y Estatus).</p>
+</div>
+
+<div id="toast">Copiado ✔</div>
+
+<script>
+const VERDE = "\u{1F7E2}"; // 🟢
+const ROJO = "\u{1F534}";  // 🔴
+
+const RE_VL = /\b(VL[CG])\s*-?\s*(\d{4})([AB])?/gi;
+// "BA" + separador opcional (espacio/guion) + numero.
+// El numero (y su letra pegada, si tiene) se detiene en el primer
+// espacio o guion: no sigue de largo hacia otro numero.
+const RE_BA = /\bBA[ \t-]*(\d+[A-Za-z]?)/gi;
+
+let ultimoResultado = [];
+
+// Regla de oro: solo cuenta si la linea EMPIEZA con circulo verde o rojo
+function estadoDeLinea(linea) {
+  const t = linea.trimStart();
+  if (t.startsWith(VERDE)) return "Abierto";
+  if (t.startsWith(ROJO)) return "Cerrado";
+  return null;
+}
+
+function normalizarBA(token) {
+  // token ya viene aislado por el regex (numero + letra pegada, si tiene).
+  // Se completan ceros a la izquierda hasta que numero+letra sumen 4
+  // caracteres. Si el numero ya tiene 4 digitos o mas (>=1000), la
+  // letra NUNCA se recorta, se agrega completa igual que en VLC/VLG.
+  const m = token.match(/^(\d+)([A-Za-z]?)$/);
+  const numero = m ? m[1] : token;
+  const letra = m ? m[2].toUpperCase() : "";
+  const codigo = numero.padStart(4 - letra.length, "0");
+  return "BA " + codigo + letra;
+}
+
+function extraerPozos(linea) {
+  const pozos = [];
+  const ocupados = [];
+
+  for (const m of linea.matchAll(RE_VL)) {
+    const letra = m[3] ? m[3].toUpperCase() : "";
+    pozos.push(m[1].toUpperCase() + m[2] + letra);
+    ocupados.push([m.index, m.index + m[0].length]);
+  }
+  for (const m of linea.matchAll(RE_BA)) {
+    const dentroVL = ocupados.some(([s, e]) => m.index >= s && m.index < e);
+    if (dentroVL) continue;
+    pozos.push(normalizarBA(m[1]));
+    ocupados.push([m.index, m.index + m[0].length]);
+  }
+  return pozos;
+}
+
+function procesar() {
+  const texto = document.getElementById("entrada").value;
+  const vistos = new Map(); // pozo -> estatus (conserva orden, evita duplicados)
+
+  for (const linea of texto.split("\n")) {
+    const estado = estadoDeLinea(linea);
+    if (!estado) continue;
+    const pozos = extraerPozos(linea);
+    for (const p of pozos) if (!vistos.has(p)) vistos.set(p, estado);
+  }
+
+  ultimoResultado = [...vistos.entries()];
+  const tbody = document.getElementById("tablaBody");
+  tbody.innerHTML = "";
+
+  for (const [pozo, estatus] of ultimoResultado) {
+    const clase = estatus === "Abierto" ? "abierto" : "cerrado";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${pozo}</td><td><span class="badge ${clase}">${estatus}</span></td>`;
+    tbody.appendChild(tr);
+  }
+
+  document.getElementById("resultadoCard").classList.toggle("hidden", ultimoResultado.length === 0);
+  if (!ultimoResultado.length) toast("No se detectaron pozos");
+}
+
+function copiarTSV() {
+  const tsv = "Pozo\tEstatus\n" +
+    ultimoResultado.map(([p, e]) => `${p}\t${e}`).join("\n");
+  navigator.clipboard.writeText(tsv)
+    .then(() => toast("Copiado ✔ — pega en Excel/Sheets"))
+    .catch(() => {
+      // fallback para navegadores viejos
+      const ta = document.createElement("textarea");
+      ta.value = tsv; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy");
+      document.body.removeChild(ta); toast("Copiado ✔");
+    });
+}
+
+function limpiar() {
+  document.getElementById("entrada").value = "";
+  document.getElementById("tablaBody").innerHTML = "";
+  document.getElementById("resultadoCard").classList.add("hidden");
+  ultimoResultado = [];
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.opacity = 1;
+  setTimeout(() => t.style.opacity = 0, 2000);
+}
+</script>
+
+</body>
+</html>

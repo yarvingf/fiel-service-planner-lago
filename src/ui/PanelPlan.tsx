@@ -1,9 +1,16 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
 import { useDatosStore } from '@/state/datosStore'
 import { useAuthStore } from '@/state/authStore'
-import { ModalAsignaciones } from './ModalAsignaciones'
 import './PanelPlan.css'
+
+// AG Grid + exportación Excel solo se necesitan si el usuario abre el modal
+// de asignaciones — se defiere del bundle inicial con import dinámico. El
+// componente solo entra al árbol de render tras el primer clic (más abajo),
+// así el import no se dispara antes de que realmente haga falta.
+const ModalAsignaciones = lazy(() =>
+  import('./ModalAsignaciones').then((m) => ({ default: m.ModalAsignaciones })),
+)
 
 /**
  * Menú lateral derecho: resumen numérico del plan del día.
@@ -17,6 +24,9 @@ export function PanelPlan() {
   const { perfil, salir } = useAuthStore()
   const [colapsado, setColapsado] = useState(false)
   const [modalPlan, setModalPlan] = useState(false)
+  // Una vez abierto la primera vez, queda montado (oculto vía `abierto`) para
+  // no perder el import dinámico ya cargado ni el estado interno del modal.
+  const [modalCargado, setModalCargado] = useState(false)
 
   const delDia = useMemo(() => asignaciones.filter((a) => a.fecha === fecha), [asignaciones, fecha])
   const totalPozos = pozos.filter((p) => p.activo && !p.reemplazado).length
@@ -97,7 +107,11 @@ export function PanelPlan() {
             </div>
           </div>
 
-          <button type="button" className="pp-detalle" onClick={() => setModalPlan(true)}>
+          <button
+            type="button"
+            className="pp-detalle"
+            onClick={() => { setModalCargado(true); setModalPlan(true) }}
+          >
             ✎ Asignaciones del día
           </button>
 
@@ -114,7 +128,11 @@ export function PanelPlan() {
         </>
       )}
 
-      <ModalAsignaciones abierto={modalPlan} onCerrar={() => setModalPlan(false)} />
+      {modalCargado && (
+        <Suspense fallback={null}>
+          <ModalAsignaciones abierto={modalPlan} onCerrar={() => setModalPlan(false)} />
+        </Suspense>
+      )}
     </aside>
   )
 }

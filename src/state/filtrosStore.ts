@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { EstatusCoa, Metodo } from '@/domain/pozo'
+import { calcularDerivadosPozo, type EstatusCoa, type Metodo, type PozoConCompletaciones } from '@/domain/pozo'
+import type { Instalacion } from '@/domain/instalacion'
 import type { Campo } from '@/domain/codigos'
 
 export interface Filtros {
@@ -33,6 +34,12 @@ export interface Filtros {
    * plan actual (`useAsignacionesStore.fecha`). 'todos' no filtra por esto.
    */
   asignacionFiltro: 'todos' | 'asignado' | 'noAsignado'
+  /**
+   * Si es true, solo se dibujan instalaciones asociadas (via efId/mgId) a
+   * algún pozo que pase los demás filtros — ej. filtrar Cerrados muestra
+   * solo las EF/MG de pozos cerrados. false = todas las instalaciones.
+   */
+  soloInstAsociadas: boolean
 }
 
 const TODOS_ESTATUS: EstatusCoa[] = ['Abierto', 'Cerrado', 'Indeterminado']
@@ -51,6 +58,7 @@ export const FILTROS_DEFAULT: Filtros = {
   mostrarLineas: true,
   estiloLineas: 'gradiente',
   asignacionFiltro: 'todos',
+  soloInstAsociadas: false,
 }
 
 interface EstadoFiltros {
@@ -71,6 +79,37 @@ export const useFiltrosStore = create<EstadoFiltros>((set) => ({
     set((s) => ({ filtros: { ...s.filtros, [clave]: alternar(s.filtros[clave] as unknown[], valor) } })),
   limpiar: () => set({ filtros: FILTROS_DEFAULT }),
 }))
+
+/**
+ * Predicado único de visibilidad de pozo — réplica exacta de `expresionPozos`
+ * (map/filtros.ts) en JavaScript. Lo usa el conteo "N / total" del panel y el
+ * cálculo de instalaciones asociadas a pozos visibles: si algún día el filtro
+ * del mapa cambia, hay que tocar los dos lados.
+ */
+export function pozoPasaFiltros(
+  p: PozoConCompletaciones,
+  f: Filtros,
+  instPorId: ReadonlyMap<string, Instalacion>,
+  idsAsignados: ReadonlySet<string>,
+): boolean {
+  if (p.reemplazado || !p.activo || p.lat === null) return false
+  const d = calcularDerivadosPozo(p.completaciones)
+  if (!f.estatus.includes(d.estatus)) return false
+  if (!f.campos.includes(p.campo)) return false
+  if (!d.metodos.some((m) => f.metodos.includes(m))) return false
+  if (d.potencialDiferidoConfirmado < f.diferidoMin) return false
+  if (d.bnpdActivo < f.bnpdMin) return false
+  const ef = (p.efId && instPorId.get(p.efId)?.codigo) ?? ''
+  const mg = (p.mgId && instPorId.get(p.mgId)?.codigo) ?? ''
+  if (f.efFiltro !== null && !f.efFiltro.includes(ef)) return false
+  if (f.mgFiltro !== null && !f.mgFiltro.includes(mg)) return false
+  if (f.asignacionFiltro !== 'todos') {
+    const asignado = idsAsignados.has(`pozo|${p.id}`)
+    if (f.asignacionFiltro === 'asignado' && !asignado) return false
+    if (f.asignacionFiltro === 'noAsignado' && asignado) return false
+  }
+  return true
+}
 
 export const OPCIONES_ESTATUS = TODOS_ESTATUS
 export const OPCIONES_METODO = TODOS_METODOS

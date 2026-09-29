@@ -1,4 +1,6 @@
-import ExcelJS from 'exceljs'
+// Solo tipos aquí: el runtime se importa dinámicamente en exportarPlanExcel()
+// para no arrastrar ExcelJS al bundle inicial.
+import type ExcelJS from 'exceljs'
 import type { Cuadrilla } from '@/domain/cuadrilla'
 import type { Campo } from '@/domain/codigos'
 import { etiquetaCampo, type DetalleObjetivo } from '@/domain/detalleAsignacion'
@@ -204,7 +206,8 @@ export async function exportarPlanExcel(
   )
   if (delDia.length === 0) return false
 
-  const wb = new ExcelJS.Workbook()
+  const { default: ExcelJSRuntime } = await import('exceljs')
+  const wb = new ExcelJSRuntime.Workbook()
   const nombresUsados = new Set<string>()
   const ordenar = (items: AsignacionRec[]) => items.sort((x, y) => compararPlan(x, y, detalleDe))
 

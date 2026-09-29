@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
 import { useDatosStore } from '@/state/datosStore'
 import { calcularDerivadosPozo, type PozoConCompletaciones } from '@/domain/pozo'
 import { NOMBRES_TIPO_INSTALACION, type Instalacion } from '@/domain/instalacion'
+import { ultimaVisitaPorPozo, type VisitaCampo } from '@/domain/visitaCampo'
 import { COLORES_ESTATUS } from '@/map/capasMarcadores'
 import './PanelDetalle.css'
 
@@ -13,12 +15,34 @@ function fmtFecha(d: Date | null | undefined): string {
   return d ? d.toLocaleDateString('es-VE') : '—'
 }
 
+/** Resumen compacto de la última visita GL/BES del pozo (bitácora, no estado). */
+function UltimaVisita({ visita }: { visita: VisitaCampo }) {
+  return (
+    <>
+      <div className="pd-subtitulo">Última visita ({visita.tipo})</div>
+      <div className="pd-grid">
+        <span>Fecha</span><b>{fmtFecha(visita.fecha)}</b>
+        <span>Cuadrilla</span><b>{visita.cuadrilla || '—'}</b>
+        <span>Actividad</span><b>{visita.tipoActividad ?? '—'}</b>
+        <span>Estado inicial</span><b>{visita.estadoInicial ?? '—'}</b>
+        <span>Estado final</span><b>{visita.estadoFinal ?? '—'}</b>
+      </div>
+      {visita.comentarios && <div className="pd-comentario">{visita.comentarios}</div>}
+    </>
+  )
+}
+
 function DetallePozo({ pozo }: { pozo: PozoConCompletaciones }) {
   const instalaciones = useDatosStore((s) => s.instalaciones)
+  const visitas = useDatosStore((s) => s.visitas)
   const instPorId = new Map(instalaciones.map((i) => [i.id, i]))
   const d = calcularDerivadosPozo(pozo.completaciones)
   const ef = pozo.efId ? instPorId.get(pozo.efId)?.codigo ?? '—' : '—'
   const mg = pozo.mgId ? instPorId.get(pozo.mgId)?.codigo ?? '—' : '—'
+  // El mapa completo se recalcula solo si cambia `visitas` (tras un sync),
+  // no en cada clic de selección de pozo — evita reconstruirlo por cada click.
+  const mapaUltimaVisita = useMemo(() => ultimaVisitaPorPozo(visitas), [visitas])
+  const ultimaVisita = mapaUltimaVisita.get(pozo.id) ?? null
 
   return (
     <>
@@ -61,6 +85,13 @@ function DetallePozo({ pozo }: { pozo: PozoConCompletaciones }) {
           ))}
         </tbody>
       </table>
+
+      {ultimaVisita ? <UltimaVisita visita={ultimaVisita} /> : (
+        <>
+          <div className="pd-subtitulo">Última visita</div>
+          <span className="pd-vacio">Sin visitas GL/BES vinculadas a este pozo</span>
+        </>
+      )}
     </>
   )
 }

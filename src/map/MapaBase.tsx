@@ -13,7 +13,7 @@ import { activarDibujo, desactivarDibujo } from './seleccion'
 import { sincronizarEstadosMapa, reiniciarEstadosMapa } from './asignacionesMapa'
 import { pozosAGeoJSON, instalacionesAGeoJSON, lineasAsociacionAGeoJSON } from '@/data/geojson'
 import { useDatosStore } from '@/state/datosStore'
-import { useFiltrosStore } from '@/state/filtrosStore'
+import { pozoPasaFiltros, useFiltrosStore } from '@/state/filtrosStore'
 import { useAsignacionesStore, type ModoSeleccion } from '@/state/asignacionesStore'
 import './MapaBase.css'
 
@@ -50,6 +50,24 @@ export function MapaBase() {
     return ids
   }, [asignaciones, fecha])
 
+  // Ids de instalaciones referenciadas (efId/mgId) por los pozos que pasan los
+  // filtros actuales — alimenta "solo instalaciones asociadas". Las
+  // expresiones de MapLibre no pueden hacer join entre fuentes, así que el
+  // set se calcula JS-side con el mismo predicado de visibilidad.
+  const idsInstAsociadas = useMemo(() => {
+    if (!filtros.soloInstAsociadas) return null
+    // `Map` aquí es el componente de react-map-gl (sombrea el global) — por
+    // eso se invoca explícito vía globalThis.
+    const instPorId = new globalThis.Map(instalaciones.map((i) => [i.id, i] as const))
+    const ids = new Set<string>()
+    for (const p of pozos) {
+      if (!pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy)) continue
+      if (p.efId) ids.add(p.efId)
+      if (p.mgId) ids.add(p.mgId)
+    }
+    return ids
+  }, [filtros, pozos, instalaciones, idsAsignadosHoy])
+
   const alCargar = useCallback(() => {
     const map = mapRef.current?.getMap()
     if (!map) return
@@ -82,8 +100,8 @@ export function MapaBase() {
   useEffect(() => {
     const map = mapRef.current?.getMap()
     if (!mapaListo || !map) return
-    aplicarFiltros(map, filtros, idsAsignadosHoy)
-  }, [mapaListo, filtros, idsAsignadosHoy])
+    aplicarFiltros(map, filtros, idsAsignadosHoy, idsInstAsociadas)
+  }, [mapaListo, filtros, idsAsignadosHoy, idsInstAsociadas])
 
   // Técnica visual de la línea de asociación (gradiente vs. animado) — efecto
   // aparte del de filtros para no reiniciar la animación en cada cambio de

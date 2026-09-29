@@ -1,8 +1,8 @@
-import ExcelJS from 'exceljs'
 import type { AlertaImport } from '@/domain/alertasImport'
 
 /** Genera el reporte de alertas del import como .xlsx y dispara la descarga. */
 export async function exportarAlertasExcel(alertas: readonly AlertaImport[]): Promise<void> {
+  const { default: ExcelJS } = await import('exceljs')
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Alertas')
   ws.columns = [

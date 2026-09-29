@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   useFiltrosStore,
+  pozoPasaFiltros,
   OPCIONES_ESTATUS,
   OPCIONES_METODO,
   OPCIONES_CAMPO,
@@ -8,7 +9,6 @@ import {
 } from '@/state/filtrosStore'
 import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
-import { calcularDerivadosPozo } from '@/domain/pozo'
 import { formatearFecha } from '@/domain/fecha'
 import { TIPOS_INSTALACION_VISIBLES, NOMBRES_TIPO_INSTALACION } from '@/domain/instalacion'
 import { COLORES_ESTATUS } from '@/map/capasMarcadores'
@@ -26,6 +26,36 @@ function Chip({ activo, color, onClick, children }: { activo: boolean; color?: s
       {children}
     </button>
   )
+}
+
+/**
+ * Sección colapsable del panel (colapso dentro del colapso general). El
+ * `resumen` muestra el estado actual sin abrirla: "2/3", "Todos", etc.
+ */
+function Seccion({ titulo, resumen, abiertoInicial = false, children }: {
+  titulo: string
+  resumen?: string
+  abiertoInicial?: boolean
+  children: React.ReactNode
+}) {
+  const [abierto, setAbierto] = useState(abiertoInicial)
+  return (
+    <div className="pf-seccion">
+      <button type="button" className="pf-seccion-titulo" onClick={() => setAbierto((v) => !v)}>
+        <span className="pf-flecha">{abierto ? '▾' : '▸'}</span>
+        {titulo}
+        {resumen && <span className="pf-resumen">{resumen}</span>}
+      </button>
+      {abierto && <div className="pf-seccion-cuerpo">{children}</div>}
+    </div>
+  )
+}
+
+/** Resumen compacto de un multi-select: null = Todos, 0 = Ninguno, n/total. */
+function resumenMulti(seleccion: string[] | null, total: number): string {
+  if (seleccion === null) return 'Todos'
+  if (seleccion.length === 0) return 'Ninguno'
+  return `${seleccion.length}/${total}`
 }
 
 export function PanelFiltros() {
@@ -52,23 +82,7 @@ export function PanelFiltros() {
   const visibles = useMemo(() => {
     let n = 0
     for (const p of pozos) {
-      if (p.reemplazado || !p.activo || p.lat === null) continue
-      const d = calcularDerivadosPozo(p.completaciones)
-      if (!filtros.estatus.includes(d.estatus)) continue
-      if (!filtros.campos.includes(p.campo)) continue
-      if (!d.metodos.some((m) => filtros.metodos.includes(m))) continue
-      if (d.potencialDiferidoConfirmado < filtros.diferidoMin) continue
-      if (d.bnpdActivo < filtros.bnpdMin) continue
-      const ef = (p.efId && instPorId.get(p.efId)?.codigo) ?? ''
-      const mg = (p.mgId && instPorId.get(p.mgId)?.codigo) ?? ''
-      if (filtros.efFiltro !== null && !filtros.efFiltro.includes(ef)) continue
-      if (filtros.mgFiltro !== null && !filtros.mgFiltro.includes(mg)) continue
-      if (filtros.asignacionFiltro !== 'todos') {
-        const asignado = idsAsignadosHoy.has(`pozo|${p.id}`)
-        if (filtros.asignacionFiltro === 'asignado' && !asignado) continue
-        if (filtros.asignacionFiltro === 'noAsignado' && asignado) continue
-      }
-      n++
+      if (pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy)) n++
     }
     return n
   }, [pozos, filtros, instPorId, idsAsignadosHoy])
@@ -129,8 +143,11 @@ export function PanelFiltros() {
       )}
 
       {!colapsado && <>
-      <div className="pf-seccion">
-        <div className="pf-etiqueta">Estatus</div>
+      <Seccion
+        titulo="Estatus"
+        resumen={`${filtros.estatus.length}/${OPCIONES_ESTATUS.length}`}
+        abiertoInicial
+      >
         <div className="pf-chips">
           {OPCIONES_ESTATUS.map((e) => (
             <Chip key={e} activo={filtros.estatus.includes(e)} color={COLORES_ESTATUS[e]} onClick={() => alternarEn('estatus', e)}>
@@ -138,10 +155,12 @@ export function PanelFiltros() {
             </Chip>
           ))}
         </div>
-      </div>
+      </Seccion>
 
-      <div className="pf-seccion">
-        <div className="pf-etiqueta">Método</div>
+      <Seccion
+        titulo="Método"
+        resumen={filtros.metodos.length === OPCIONES_METODO.length ? 'Todos' : `${filtros.metodos.length}/${OPCIONES_METODO.length}`}
+      >
         <div className="pf-chips">
           {OPCIONES_METODO.map((m) => (
             <Chip key={m} activo={filtros.metodos.includes(m)} onClick={() => alternarEn('metodos', m)}>
@@ -149,10 +168,12 @@ export function PanelFiltros() {
             </Chip>
           ))}
         </div>
-      </div>
+      </Seccion>
 
-      <div className="pf-seccion">
-        <div className="pf-etiqueta">Campo</div>
+      <Seccion
+        titulo="Campo"
+        resumen={filtros.campos.length === OPCIONES_CAMPO.length ? 'Todos' : filtros.campos.join(', ') || 'Ninguno'}
+      >
         <div className="pf-chips">
           {OPCIONES_CAMPO.map((c) => (
             <Chip key={c} activo={filtros.campos.includes(c)} onClick={() => alternarEn('campos', c)}>
@@ -160,10 +181,12 @@ export function PanelFiltros() {
             </Chip>
           ))}
         </div>
-      </div>
+      </Seccion>
 
-      <div className="pf-seccion">
-        <div className="pf-etiqueta">Asignación ({formatearFecha(fechaPlan)})</div>
+      <Seccion
+        titulo={`Asignación (${formatearFecha(fechaPlan)})`}
+        resumen={{ todos: 'Todos', asignado: 'Asignado', noAsignado: 'No asignado' }[filtros.asignacionFiltro]}
+      >
         <div className="pf-estilo-lineas">
           <button
             type="button"
@@ -187,20 +210,33 @@ export function PanelFiltros() {
             No asignado
           </button>
         </div>
-      </div>
+      </Seccion>
 
-      <div className="pf-seccion pf-numericos">
-        <label>
-          Diferido ≥ <input type="number" min={0} value={filtros.diferidoMin || ''} placeholder="0"
-            onChange={(e) => setFiltros({ diferidoMin: Number(e.target.value) || 0 })} /> BPD
-        </label>
-        <label>
-          BNPD ≥ <input type="number" min={0} value={filtros.bnpdMin || ''} placeholder="0"
-            onChange={(e) => setFiltros({ bnpdMin: Number(e.target.value) || 0 })} /> BPD
-        </label>
-      </div>
+      <Seccion
+        titulo="Límites"
+        resumen={
+          filtros.diferidoMin === 0 && filtros.bnpdMin === 0
+            ? 'Sin mínimos'
+            : [filtros.diferidoMin > 0 && `Dif≥${filtros.diferidoMin}`, filtros.bnpdMin > 0 && `BNPD≥${filtros.bnpdMin}`]
+                .filter(Boolean).join(' · ')
+        }
+      >
+        <div className="pf-numericos">
+          <label>
+            Diferido ≥ <input type="number" min={0} value={filtros.diferidoMin || ''} placeholder="0"
+              onChange={(e) => setFiltros({ diferidoMin: Number(e.target.value) || 0 })} /> BPD
+          </label>
+          <label>
+            BNPD ≥ <input type="number" min={0} value={filtros.bnpdMin || ''} placeholder="0"
+              onChange={(e) => setFiltros({ bnpdMin: Number(e.target.value) || 0 })} /> BPD
+          </label>
+        </div>
+      </Seccion>
 
-      <div className="pf-seccion">
+      <Seccion
+        titulo="EF / MG"
+        resumen={`EF ${resumenMulti(filtros.efFiltro, efCodigos.length)} · MG ${resumenMulti(filtros.mgFiltro, mgCodigos.length)}`}
+      >
         <FiltroMultiSelect
           etiqueta="EF"
           opciones={efCodigos}
@@ -215,9 +251,13 @@ export function PanelFiltros() {
           onChange={(mgFiltro) => setFiltros({ mgFiltro })}
           grupoDe={(cod) => mgInfo.get(cod)}
         />
-      </div>
+      </Seccion>
 
-      <div className="pf-seccion">
+      <Seccion
+        titulo="Instalaciones"
+        resumen={`${resumenMulti(filtros.tiposInst, tiposPresentes.length)} · líneas ${filtros.mostrarLineas ? 'on' : 'off'}`}
+        abiertoInicial
+      >
         <FiltroMultiSelect
           etiqueta="Instal."
           opciones={tiposPresentes}
@@ -253,7 +293,18 @@ export function PanelFiltros() {
             </button>
           </div>
         )}
-      </div>
+        <label
+          className="pf-toggle"
+          title="Marcado: solo se ven instalaciones EF/MG asociadas a los pozos que pasan los filtros actuales (ej. solo Cerrados → solo sus EF/MG). Desmarcado: todas las instalaciones."
+        >
+          <input
+            type="checkbox"
+            checked={filtros.soloInstAsociadas}
+            onChange={(e) => setFiltros({ soloInstAsociadas: e.target.checked })}
+          />
+          Solo inst. de pozos visibles
+        </label>
+      </Seccion>
 
       {hayCambios && (
         <button type="button" className="pf-limpiar" onClick={limpiar}>Limpiar filtros</button>
