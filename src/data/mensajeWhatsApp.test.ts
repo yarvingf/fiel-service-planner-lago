@@ -96,7 +96,7 @@ describe('mensajeWhatsApp', () => {
     ])
     const msg = construirMensajeWhatsApp(FECHA, [cuad('c1', 'C')], items, detalles)!
     expect(msg).toContain('*`BA 1-02`*   *`EF-BA-17`*')
-    expect(msg).toContain('✓ Medición a los pozos: *🔴 BA 1745*, *🟢 BA 2711*')
+    expect(msg).toContain('✓ Medición a los pozos: *BA 1745*, *BA 2711*')
   })
 
   it('pozos BES/BM/BCP se agrupan bajo el método, no por MG/EF', () => {
@@ -111,7 +111,7 @@ describe('mensajeWhatsApp', () => {
     ])
     const msg = construirMensajeWhatsApp(FECHA, [cuad('c1', 'C')], items, detalles)!
     expect(msg).toContain('*`BES`*')
-    expect(msg).toContain('✓ Medición a los pozos: *🟢 BA 900*, *🟢 BA 912*')
+    expect(msg).toContain('✓ Medición a los pozos: *BA 900*, *BA 912*')
     expect(msg).not.toContain('BA 1-02')
   })
 
@@ -129,10 +129,10 @@ describe('mensajeWhatsApp', () => {
     expect(msg).toContain('*`Sin EF/MG asociado`*')
   })
 
-  it('pozos sin actividad van bajo "Actividad por definir" y estatus sin dato → ⚪', () => {
+  it('pozos sin actividad van bajo "Actividad por definir" y los códigos salen sin bolita de estatus', () => {
     const items = [asig({ id: 'a1', objetivoId: 'pozo|p1' })]
     const detalles = mapa([['pozo|p1', det({ estatus: 'Indeterminado' })]])
     const msg = construirMensajeWhatsApp(FECHA, [cuad('c1', 'C')], items, detalles)!
-    expect(msg).toContain('✓ Actividad por definir a los pozos: *⚪ BA 1*')
+    expect(msg).toContain('✓ Actividad por definir a los pozos: *BA 1*')
   })
 })

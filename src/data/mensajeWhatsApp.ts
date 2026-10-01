@@ -1,15 +1,7 @@
 import type { Cuadrilla } from '@/domain/cuadrilla'
 import type { AsignacionRec } from '@/state/asignacionesStore'
-import type { EstatusCoa } from '@/domain/pozo'
 import { formatearFechaCorta } from '@/domain/fecha'
 import type { DetalleObjetivo } from '@/domain/detalleAsignacion'
-
-/** Bolita de estatus dentro de la negrita de cada pozo (rojo cerrado, verde abierto). */
-export const EMOJI_ESTATUS: Record<EstatusCoa, string> = {
-  Abierto: '🟢',
-  Cerrado: '🔴',
-  Indeterminado: '⚪',
-}
 
 /** Títulos con "sombra": `*` fuera y ` dentro → negrita real + backtick visible. */
 const sombra = (s: string) => `*\`${s}\`*`
@@ -61,13 +53,13 @@ function grupoDe(d: DetalleObjetivo | undefined): { clave: string; etiqueta: str
  *   *【Bachaquero Lago】*
  *   🚢*`Cuadrilla: Cuadrilla 3`*
  *   *`BA 1-02`*   *`EF-BA-17`*
- *   ✓ Toma de Parámetros/Nivel a los pozos: *🔴 BA 1745*, *🟢 BA 2711*, …
+ *   ✓ Toma de Parámetros/Nivel a los pozos: *BA 1745*, *BA 2711*, …
  *   *`BES`*
- *   ✓ Otra actividad a los pozos: *🟢 BA 900*, …
+ *   ✓ Otra actividad a los pozos: *BA 900*, …
  *
  * Agrupación: campo → cuadrilla → par MG/EF (solo GL/NF; otros métodos se
  * agrupan bajo su nombre: BES, BM, BCP) → actividad. Los títulos llevan
- * sombra (monoespaciado) y los pozos negrita con bolita de estatus.
+ * sombra (monoespaciado) y los pozos solo negrita (sin indicador de estatus).
  * Devuelve null si no hay pozos asignados ese día.
  */
 export function construirMensajeWhatsApp(
@@ -123,10 +115,7 @@ export function construirMensajeWhatsApp(
         for (const [act, items] of ordenado(nActs)) {
           const pozos = items
             .sort((x, y) => x.codigo.localeCompare(y.codigo))
-            .map((p) => {
-              const e = detalleDe.get(p.objetivoId)?.estatus
-              return `*${e ? EMOJI_ESTATUS[e] : '⚪'} ${p.codigo}*`
-            })
+            .map((p) => `*${p.codigo}*`)
             .join(', ')
           lineas.push(`✓ ${act} a los pozos: ${pozos}`)
         }

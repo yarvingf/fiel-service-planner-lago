@@ -3,7 +3,6 @@ import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
 import { calcularDerivadosPozo } from '@/domain/pozo'
 import { NOMBRES_TIPO_INSTALACION } from '@/domain/instalacion'
-import { EMOJI_ESTATUS } from '@/data/mensajeWhatsApp'
 import { COLORES_ESTATUS } from '@/map/capasMarcadores'
 import './MenuContextual.css'
 
@@ -72,9 +71,10 @@ export function MenuContextual({ x, y, kind, id, onCerrar }: PosMenuContextual &
   }
 
   const copiarLinea = async () => {
-    if (!pozo || !estatus) return
+    if (!pozo) return
     try {
-      await navigator.clipboard.writeText(`*${EMOJI_ESTATUS[estatus]} ${pozo.codigo}*`)
+      // Mismo formato que la línea del pozo en el mensaje del plan.
+      await navigator.clipboard.writeText(`*${pozo.codigo}*`)
       setCopiado(true)
       setTimeout(onCerrar, 650)
     } catch {
