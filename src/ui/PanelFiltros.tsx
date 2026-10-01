@@ -141,6 +141,17 @@ export function PanelFiltros() {
         {!colapsado && <span className="pf-contador">{visibles} / {total} pozos</span>}
       </div>
 
+      {!colapsado && filtros.soloIds !== null && (
+        <button
+          type="button"
+          className="pf-deseleccionar"
+          title="El mapa está mostrando solo los pozos de la lista pegada — clic para volver a ver todos"
+          onClick={() => setFiltros({ soloIds: null })}
+        >
+          Mostrando solo {filtros.soloIds.length} pozos de la lista ✕
+        </button>
+      )}
+
       {!colapsado && nSeleccion > 0 && (
         <button type="button" className="pf-deseleccionar" onClick={limpiarSeleccion}>
           Deseleccionar todo ({nSeleccion})

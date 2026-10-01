@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parsearMensajeCoa } from './parserCoa'
+import { parsearMensajeCoa, extraerCodigosPozos } from './parserCoa'
 
 // Casos portados de PozosA-C COA/test_parser.py y web/test.js (mismo comportamiento).
 const MENSAJE =
@@ -55,5 +55,23 @@ describe('parsearMensajeCoa', () => {
 
   it('sin iconos válidos devuelve lista vacía', () => {
     expect(parsearMensajeCoa('mensaje cualquiera BA 345')).toEqual([])
+  })
+})
+
+describe('extraerCodigosPozos (lista libre)', () => {
+  it('extrae códigos de cualquier línea, sin exigir 🟢/🔴', () => {
+    const r = extraerCodigosPozos(
+      'BA 2644, BA-11\n' +
+      'VLG3301A y VLC 1234\n' +
+      'fila copiada de excel\tBA 0050\n' +
+      '🟢 BA 1075A\n' +
+      'texto sin pozos\n',
+    )
+    expect(r).toEqual(['BA 2644', 'BA 0011', 'VLG3301A', 'VLC1234', 'BA 0050', 'BA 1075A'])
+  })
+
+  it('deduplica conservando el orden y no detecta números sueltos', () => {
+    const r = extraerCodigosPozos('BA 0050\n2644\nBA 0050 otra vez\n12345\n')
+    expect(r).toEqual(['BA 0050'])
   })
 })

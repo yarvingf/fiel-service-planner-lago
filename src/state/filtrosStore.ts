@@ -45,6 +45,11 @@ export interface Filtros {
    * hace ≥N días de su última visita — o si nunca ha sido visitado. 0 = off.
    */
   sinVisitaDias: number
+  /**
+   * Lista blanca de ids de pozo ("Mostrar solo" del modal Lista de pozos):
+   * no-null = solo esos pozos pasan el filtro. null = off.
+   */
+  soloIds: string[] | null
 }
 
 const TODOS_ESTATUS: EstatusCoa[] = ['Abierto', 'Cerrado', 'Indeterminado']
@@ -65,6 +70,7 @@ export const FILTROS_DEFAULT: Filtros = {
   asignacionFiltro: 'todos',
   soloInstAsociadas: false,
   sinVisitaDias: 0,
+  soloIds: null,
 }
 
 interface EstadoFiltros {
@@ -115,6 +121,8 @@ export function pozoPasaFiltros(
     if (f.asignacionFiltro === 'asignado' && !asignado) return false
     if (f.asignacionFiltro === 'noAsignado' && asignado) return false
   }
+  // Lista blanca "Mostrar solo" — manda sobre el resto.
+  if (f.soloIds !== null && !f.soloIds.includes(p.id)) return false
   // Sin visita registrada = "nunca visitado" → pasa cualquier umbral >0.
   if (f.sinVisitaDias > 0) {
     const dias = diasSinVisita?.get(p.id)

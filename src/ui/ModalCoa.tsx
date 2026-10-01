@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useDatosStore } from '@/state/datosStore'
 import { parsearMensajeCoa, type EstatusMensaje } from '@/domain/parserCoa'
-import { calcularDerivadosPozo, type EstatusCoa, type PozoConCompletaciones } from '@/domain/pozo'
-import { claveNormalizadaPozo, clavePozoFisico, parsearCodigoPozo, type Campo } from '@/domain/codigos'
+import { calcularDerivadosPozo, type EstatusCoa } from '@/domain/pozo'
+import { construirIndicePozos, resolverPozoPorCodigo } from '@/domain/resolverPozo'
 import './ModalCoa.css'
 
 interface Props {
@@ -19,10 +19,6 @@ interface FilaCoa {
   codigoReal: string | null
   /** 'exacto' = mismo código; 'fisico' = mismo pozo físico con otra letra de reemplazo. */
   via: 'exacto' | 'fisico' | null
-}
-
-function campoDe(codigo: string): Campo {
-  return codigo.startsWith('VLC') ? 'VLC' : codigo.startsWith('VLG') ? 'VLG' : 'BA'
 }
 
 /**
@@ -44,36 +40,16 @@ export function ModalCoa({ onCerrar }: Props) {
   const pozosPorId = useMemo(() => new Map(pozos.map((p) => [p.id, p])), [pozos])
 
   const procesar = () => {
-    const porCodigo = new Map<string, PozoConCompletaciones>()
-    const porFisico = new Map<string, PozoConCompletaciones[]>()
-    for (const p of pozos) {
-      porCodigo.set(claveNormalizadaPozo(p.codigo), p)
-      const k = clavePozoFisico(p)
-      const arr = porFisico.get(k) ?? []
-      arr.push(p)
-      porFisico.set(k, arr)
-    }
+    const indice = construirIndicePozos(pozos)
     setFilas(
       parsearMensajeCoa(texto).map((d) => {
-        const exacto = porCodigo.get(claveNormalizadaPozo(d.codigo))
-        if (exacto && !exacto.reemplazado) {
-          return { detectado: d.codigo, estatus: d.estatus, pozoId: exacto.id, codigoReal: exacto.codigo, via: 'exacto' }
-        }
-        // Fallback: el mensaje suele soltar la letra de reemplazo —
-        // "BA 345" en el mensaje matchea el "BA 345A" activo del universo.
-        const parseado = parsearCodigoPozo(d.codigo, campoDe(d.codigo))
-        const activo = parseado
-          ? (porFisico.get(clavePozoFisico(parseado)) ?? []).find((x) => !x.reemplazado)
-          : undefined
-        if (activo) {
-          return { detectado: d.codigo, estatus: d.estatus, pozoId: activo.id, codigoReal: activo.codigo, via: 'fisico' }
-        }
+        const match = resolverPozoPorCodigo(d.codigo, indice)
         return {
           detectado: d.codigo,
           estatus: d.estatus,
-          pozoId: exacto?.id ?? null,
-          codigoReal: exacto?.codigo ?? null,
-          via: exacto ? 'exacto' : null,
+          pozoId: match?.pozo.id ?? null,
+          codigoReal: match?.pozo.codigo ?? null,
+          via: match?.via ?? null,
         }
       }),
     )

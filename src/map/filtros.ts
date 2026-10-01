@@ -53,6 +53,8 @@ export function expresionPozos(f: Filtros, idsAsignados?: ReadonlySet<string> | 
     perteneceA('ef', f.efFiltro),
     perteneceA('mg', f.mgFiltro),
     criterioAsignacion(f, 'pozo|', idsAsignados),
+    // Lista blanca "Mostrar solo" (modal Lista de pozos): no-null = solo esos ids.
+    f.soloIds !== null ? ['in', ['get', 'id'], ['literal', f.soloIds]] : true,
     // Antigüedad de la última visita: 'diasSinVisita' viene aplanado en el
     // GeoJSON (9999 = nunca visitado → pasa cualquier umbral).
     f.sinVisitaDias > 0 ? ['>=', ['get', 'diasSinVisita'], f.sinVisitaDias] : true,

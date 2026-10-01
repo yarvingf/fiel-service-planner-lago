@@ -74,3 +74,24 @@ export function parsearMensajeCoa(texto: string): PozoCoaDetectado[] {
   }
   return [...vistos.entries()].map(([codigo, estatus]) => ({ codigo, estatus }))
 }
+
+/**
+ * Variante libre: extrae códigos de pozo de CUALQUIER texto pegado, sin
+ * exigir 🟢/🔴 al inicio de línea (una lista suelta de pozos, una columna
+ * de Excel copiada, un mensaje cualquiera). Deduplicado conservando orden.
+ * Solo detecta códigos con prefijo explícito (BA / VLC / VLG) — números
+ * sueltos no cuentan como pozo para evitar falsos positivos.
+ */
+export function extraerCodigosPozos(texto: string): string[] {
+  const vistos = new Set<string>()
+  const out: string[] = []
+  for (const linea of texto.split('\n')) {
+    for (const codigo of extraerPozos(linea)) {
+      if (!vistos.has(codigo)) {
+        vistos.add(codigo)
+        out.push(codigo)
+      }
+    }
+  }
+  return out
+}

@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom'
 import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore, type IdObjetivo } from '@/state/asignacionesStore'
 
-// El modal COA solo se descarga al abrirlo por primera vez (chunk aparte).
+// Los modales solo se descargan al abrirlos por primera vez (chunks aparte).
 const ModalCoa = lazy(() => import('./ModalCoa').then((m) => ({ default: m.ModalCoa })))
+const ModalListaPozos = lazy(() => import('./ModalListaPozos').then((m) => ({ default: m.ModalListaPozos })))
 import { HerramientaMenu } from './HerramientaMenu'
 import { CapturaMenu } from './CapturaMenu'
 import { mapaInstancia } from '@/map/mapaInstancia'
@@ -44,6 +45,7 @@ export function BarraHerramientas() {
   const [query, setQuery] = useState('')
   const [activo, setActivo] = useState(0)
   const [modalCoa, setModalCoa] = useState(false)
+  const [modalLista, setModalLista] = useState(false)
   const inputArchivo = useRef<HTMLInputElement>(null)
   const inputBusqueda = useRef<HTMLInputElement>(null)
 
@@ -234,6 +236,15 @@ export function BarraHerramientas() {
       <button
         type="button"
         className="bh-boton"
+        title="Pegar una lista o texto con pozos para seleccionarlos en el mapa"
+        onClick={() => setModalLista(true)}
+      >
+        📋 Lista
+      </button>
+
+      <button
+        type="button"
+        className="bh-boton"
         disabled={cargando}
         onClick={() => inputArchivo.current?.click()}
       >
@@ -269,6 +280,13 @@ export function BarraHerramientas() {
       createPortal(
         <Suspense fallback={null}>
           <ModalCoa onCerrar={() => setModalCoa(false)} />
+        </Suspense>,
+        document.body,
+      )}
+    {modalLista &&
+      createPortal(
+        <Suspense fallback={null}>
+          <ModalListaPozos onCerrar={() => setModalLista(false)} />
         </Suspense>,
         document.body,
       )}
