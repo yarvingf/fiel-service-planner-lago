@@ -30,6 +30,16 @@ async function cargarPerfil(usuarioId: string): Promise<Perfil | null> {
   return data ?? null
 }
 
+/**
+ * Dominio interno para login por nickname: Supabase exige email, así que un
+ * usuario "juan" entra como "juan@lago.local". Es un correo ficticio — no
+ * existe ni se envía nada; los usuarios se crean en el dashboard con ese
+ * email. Si el texto ya trae '@' se usa tal cual (correo real).
+ */
+const DOMINIO_INTERNO = 'lago.local'
+export const aEmail = (usuario: string): string =>
+  usuario.includes('@') ? usuario : `${usuario.toLowerCase()}@${DOMINIO_INTERNO}`
+
 let suscripcionIniciada = false
 
 export const useAuthStore = create<EstadoAuth>((set) => ({
@@ -61,19 +71,19 @@ export const useAuthStore = create<EstadoAuth>((set) => ({
     if (sesion) set({ perfil: await cargarPerfil(sesion.user.id) })
   },
 
-  entrar: async (email, password) => {
+  entrar: async (usuario, password) => {
     if (!supabase) {
       set({ errorAuth: MENSAJE_FALTA_CONFIG })
       return
     }
     set({ entrando: true, errorAuth: null })
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({ email: aEmail(usuario), password })
     if (error) {
       set({
         entrando: false,
         errorAuth:
           error.message === 'Invalid login credentials'
-            ? 'Correo o contraseña incorrectos'
+            ? 'Usuario o contraseña incorrectos'
             : error.message,
       })
       return
