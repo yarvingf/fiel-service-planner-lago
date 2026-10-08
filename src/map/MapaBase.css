@@ -5,10 +5,10 @@
   flex: 1 1 auto;
 }
 
-/* Sobre la consola de mando (54px) — queda apilado con el inspector. */
+/* Sobre la consola de 3 segmentos — queda apilado con el inspector. */
 .mapa-boton-base {
   position: absolute;
-  bottom: 66px;
+  bottom: 86px;
   left: 16px;
   z-index: 1;
   font: inherit;
@@ -20,7 +20,7 @@
   background: var(--hud-bg);
   color: var(--hud-text);
   cursor: pointer;
-  box-shadow: var(--hud-shadow);
+  box-shadow: var(--hud-shadow-float);
 }
 
 .mapa-boton-base:hover {
@@ -29,14 +29,52 @@
   color: var(--hud-navy);
 }
 
+
+
 .mapa-atribucion-satelite {
   position: absolute;
-  bottom: 58px;
+  bottom: 80px;
   right: 8px;
   z-index: 1;
   font-size: 11px;
-  color: #334155;
-  background: rgba(255, 255, 255, 0.75);
+  color: #a1a1aa;
+  background: rgba(0, 0, 0, 0.55);
   padding: 2px 6px;
   border-radius: 4px;
+}
+
+/* Chrome de MapLibre (zoom/brújula) en modo oscuro: el grupo es una
+   tarjeta carbón y los iconos SVG oscuros se invierten a claro. */
+.maplibregl-ctrl-group {
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  border-radius: 8px;
+  box-shadow: var(--hud-shadow-float);
+}
+.maplibregl-ctrl-group button {
+  background-color: transparent;
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--hud-border);
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(0.85);
+}
+
+/* Tooltip de pozo/instalación: el popup de MapLibre también va oscuro. */
+.maplibregl-popup-content {
+  background: var(--hud-bg);
+  color: var(--hud-text);
+  border: 1px solid var(--hud-border);
+  border-radius: 8px;
+  box-shadow: var(--hud-shadow-float);
+}
+.maplibregl-popup-tip {
+  border-top-color: var(--hud-bg) !important;
+  border-bottom-color: var(--hud-bg) !important;
+  border-left-color: var(--hud-bg) !important;
+  border-right-color: var(--hud-bg) !important;
+}
+.maplibregl-popup-close-button {
+  color: var(--hud-muted);
 }

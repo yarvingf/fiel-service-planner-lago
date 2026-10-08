@@ -1,31 +1,46 @@
-/* El panel vive acoplado dentro del rail izquierdo (.app-rail) — ya no es
-   overlay flotante: ocupa la columna completa y deja el mapa sin colisiones. */
+/* Capa de cierre del modal de filtros: transparente — solo atrapa el clic
+   fuera de la tarjeta sin oscurecer el mapa. */
+.pf-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+}
+
+/* Modal de filtros: anclado bajo la topbar, a la izquierda. */
 .panel-filtros {
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
+  position: absolute;
+  top: 60px;
+  left: 14px;
+  width: 256px;
+  max-height: calc(100% - 120px);
   overflow-y: auto;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  border-radius: 10px;
+  box-shadow: var(--hud-shadow-float);
   padding: 12px 14px;
+  z-index: 11;
   font-size: 13px;
   color: var(--hud-text);
 }
 
 .pf-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
   font-weight: 700;
   font-size: 13px;
   margin-bottom: 4px;
 }
+.pf-header > span:first-child { margin-right: auto; }
 .pf-contador {
   font-size: 11px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--hud-muted);
 }
 
 /* Sección colapsable: fila-título siempre visible con el estado resumido */
-.pf-seccion { border-bottom: 1px solid #e2e8f0; }
+.pf-seccion { border-bottom: 1px solid var(--hud-border); }
 .pf-seccion:last-of-type { border-bottom: none; }
 
 .pf-seccion-titulo {
@@ -40,11 +55,11 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: var(--hud-muted);
   cursor: pointer;
   text-align: left;
 }
-.pf-seccion-titulo:hover { color: #334155; }
+.pf-seccion-titulo:hover { color: var(--hud-text); }
 .pf-flecha { width: 10px; font-size: 9px; }
 .pf-resumen {
   margin-left: auto;
@@ -52,7 +67,7 @@
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
-  color: #94a3b8;
+  color: #a1a1aa;
   max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -68,9 +83,9 @@
 .pf-chips-tipos { margin-top: 6px; }
 
 .pf-chip {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #475569;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-bg-soft);
+  color: var(--hud-muted);
   border-radius: 6px;
   padding: 2px 8px;
   font-size: 11px;
@@ -90,19 +105,19 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #475569;
+  color: var(--hud-muted);
   margin-bottom: 4px;
 }
 .pf-numericos input,
 .pf-texto input {
   flex: 1;
   min-width: 0;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--hud-border);
   border-radius: 6px;
   padding: 3px 6px;
   font-size: 12px;
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--hud-bg-soft);
+  color: var(--hud-text);
 }
 .pf-numericos input { width: 70px; flex: 0 0 auto; }
 
@@ -121,21 +136,21 @@
   gap: 4px;
   margin-top: 6px;
   padding: 2px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--hud-border);
   border-radius: 7px;
   width: fit-content;
 }
 .pf-estilo-lineas button {
   border: none;
   background: transparent;
-  color: #64748b;
+  color: var(--hud-muted);
   font-size: 11px;
   font-weight: 600;
   padding: 4px 9px;
   border-radius: 5px;
   cursor: pointer;
 }
-.pf-estilo-lineas button:hover { background: #f1f5f9; }
+.pf-estilo-lineas button:hover { background: var(--hud-navy-soft); }
 .pf-estilo-activo {
   background: var(--hud-navy) !important;
   color: #ffffff !important;
@@ -144,41 +159,35 @@
 .pf-leyenda {
   margin-top: 4px;
   font-size: 10px;
-  color: #94a3b8;
+  color: #a1a1aa;
   line-height: 1.4;
 }
 
 .pf-limpiar {
   width: 100%;
   margin-top: 4px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-bg-soft);
   border-radius: 6px;
   padding: 5px 0;
   font-size: 12px;
   font-weight: 600;
-  color: #475569;
+  color: var(--hud-muted);
   cursor: pointer;
 }
-.pf-limpiar:hover { background: #f1f5f9; }
+.pf-limpiar:hover { background: var(--hud-navy-soft); }
 
-/* Colapsado: solo la cabecera con el botón ▸, dentro de la tira de 44px. */
-.panel-filtros.pf-colapsado {
-  padding: 10px 8px;
-  overflow: hidden;
-}
-.panel-filtros.pf-colapsado .pf-header { justify-content: center; }
-.panel-filtros.pf-colapsado .pf-header span { display: none; }
-
+/* Botón ✕ de cierre del modal. */
 .pf-colapso {
   border: none;
   background: transparent;
-  color: #0f172a;
-  font-size: 13px;
+  color: var(--hud-muted);
+  font-size: 18px;
   cursor: pointer;
-  padding: 0 4px 0 0;
+  padding: 0 2px;
   line-height: 1;
 }
+.pf-colapso:hover { color: var(--hud-text); }
 
 .pf-deseleccionar {
   width: 100%;
@@ -192,4 +201,4 @@
   font-weight: 600;
   cursor: pointer;
 }
-.pf-deseleccionar:hover { background: #d7e0f5; }
+.pf-deseleccionar:hover { background: var(--hud-border); }

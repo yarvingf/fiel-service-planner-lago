@@ -101,13 +101,13 @@ export function MenuContextual({ x, y, kind, id, onCerrar }: PosMenuContextual &
 
       {elegirCuadrilla ? (
         <div className="mc-cuadrillas">
-          {cuadrillas.map((c) => (
+          {cuadrillas.filter((c) => c.activa).map((c) => (
             <button key={c.id} type="button" onClick={() => asignarA(c.id)}>
               <span className="mc-punto" style={{ background: c.color }} />
               {c.nombre}
             </button>
           ))}
-          {cuadrillas.length === 0 && <span className="mc-vacio">Sin cuadrillas</span>}
+          {cuadrillas.every((c) => !c.activa) && <span className="mc-vacio">Sin cuadrillas</span>}
         </div>
       ) : (
         <>

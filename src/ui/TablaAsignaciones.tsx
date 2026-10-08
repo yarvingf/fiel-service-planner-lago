@@ -139,9 +139,11 @@ const tema = themeQuartz.withParams({
   headerFontWeight: 700,
   headerHeight: 30,
   rowHeight: 30,
-  headerTextColor: '#64748b',
-  borderColor: '#f1f5f9',
-  headerBackgroundColor: '#ffffff',
+  headerTextColor: '#9aa0a6',
+  foregroundColor: '#e8eaed',
+  backgroundColor: '#26282e',
+  borderColor: '#2e3038',
+  headerBackgroundColor: '#1f2126',
   // Sin pintado de fila seleccionada: la selección se discierne por el
   // checkbox y por el rango de celdas azulito (estilo Excel, no fila entera).
   selectedRowBackgroundColor: 'transparent',

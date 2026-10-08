@@ -9,7 +9,7 @@ export function PanelAsignacion() {
   const {
     cuadrillas, asignaciones, fecha, seleccion, cuadrillaActiva,
     asignacionPendiente, resoluciones,
-    setSeleccion, setCuadrillaActiva, guardando, errorPlan,
+    setSeleccion, guardando, errorPlan,
     limpiarSeleccion, iniciarAsignacion, setResolucion, resolverTodos,
     cancelarAsignacionPendiente, confirmarAsignacionPendiente, desasignar,
   } = useAsignacionesStore()
@@ -24,34 +24,21 @@ export function PanelAsignacion() {
 
   const pozosSel = seleccion.filter((id) => id.startsWith('pozo|')).length
   const instSel = seleccion.length - pozosSel
+  const activa = cuadrillas.find((c) => c.id === cuadrillaActiva)
 
   return (
     <>
       <div className="panel-asignacion">
-        <div className="pa-cuadrillas">
-          <span className="pa-etiqueta">Cuadrillas</span>
-          {cuadrillas.length === 0 && <span className="pa-sin-cuadrillas">ninguna creada</span>}
-          {cuadrillas.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`pa-chip${cuadrillaActiva === c.id ? ' pa-chip-activa' : ''}`}
-              style={cuadrillaActiva === c.id ? { borderColor: c.color, background: c.color, color: '#0b1220' } : { borderColor: c.color, color: c.color }}
-              onClick={() => setCuadrillaActiva(cuadrillaActiva === c.id ? null : c.id)}
-            >
-              <span className="pa-chip-punto" style={{ background: c.color }} />
-              {c.nombre}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="pa-gestion"
-            title="Crear y gestionar cuadrillas"
-            onClick={() => setModalCuadrillas(true)}
-          >
-            ⚙
-          </button>
-        </div>
+        <button
+          type="button"
+          className="pa-cuadrillas-btn"
+          title="Abrir panel de cuadrillas"
+          onClick={() => setModalCuadrillas(true)}
+        >
+          {activa && <span className="pa-chip-punto" style={{ background: activa.color }} />}
+          {activa ? activa.nombre : '👥 Cuadrillas'}
+          <span className="pa-btn-flecha">▾</span>
+        </button>
 
         <div className="pa-separador" />
 

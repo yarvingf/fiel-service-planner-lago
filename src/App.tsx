@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { MapaBase } from './map/MapaBase'
 import { PanelDetalle } from './ui/PanelDetalle'
-import { PanelFiltros } from './ui/PanelFiltros'
 import { BarraHerramientas } from './ui/BarraHerramientas'
 import { PanelAsignacion } from './ui/PanelAsignacion'
 import { PanelPlan } from './ui/PanelPlan'
@@ -46,15 +45,18 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="app-layout">
-        <aside className="app-rail">
-          <PanelFiltros />
-        </aside>
         <div className="app-mapa">
           <MapaBase />
-          <BarraHerramientas />
+          {/* Todo flota sobre el mapa (estilo Google Maps): topbar con
+              búsqueda+herramientas+filtros arriba-izquierda (en
+              BarraHerramientas), plan arriba-derecha, ficha de detalle
+              abajo-izquierda, consola de segmentos abajo. */}
           <PanelDetalle />
-          <PanelAsignacion />
           <PanelPlan />
+          <div className="app-consola">
+            <BarraHerramientas />
+            <PanelAsignacion />
+          </div>
           <ModalSincronizacion />
         </div>
       </div>

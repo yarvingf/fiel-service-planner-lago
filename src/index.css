@@ -1,7 +1,7 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
+  --text: #9aa0a6;
+  --text-h: #f3f4f6;
+  --bg: #121317;
   --border: #e5e4e7;
   --code-bg: #f4f3ec;
   --accent: #aa3bff;
@@ -15,20 +15,25 @@
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  /* Paleta del HUD operativo: blanco dominante + azul marino, sobrio. */
-  --hud-bg: #ffffff;
-  --hud-bg-soft: #f4f6fb;
-  --hud-border: #dbe2f0;
-  --hud-navy: #1e3a6e;
-  --hud-navy-dark: #142c56;
-  --hud-navy-soft: #e8edf8;
-  --hud-text: #0f1a2e;
-  --hud-muted: #64748b;
-  --hud-shadow: 0 2px 10px rgba(15, 26, 46, 0.1);
+  /* Paleta del HUD operativo: tema oscuro estilo Google Maps Navigation —
+     tarjetas carbón translúcidas (opacidad ~0.5, texto ~0.75) sobre el
+     mapa, acento azul; el color lo aportan los datos (estatus, cuadrillas). */
+  --hud-bg: rgba(31, 33, 38, 0.5);
+  --hud-bg-soft: rgba(38, 40, 46, 0.65);
+  --hud-border: rgba(255, 255, 255, 0.1);
+  --hud-navy: #4f8bf7;
+  --hud-navy-dark: #3568d4;
+  --hud-navy-soft: rgba(79, 139, 247, 0.16);
+  --hud-hover: rgba(255, 255, 255, 0.07);
+  --hud-text: rgba(232, 234, 237, 0.75);
+  --hud-muted: rgba(154, 160, 166, 0.85);
+  --hud-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  /* Tarjetas suspendidas sobre el mapa (filtros, plan, detalle, consola). */
+  --hud-shadow-float: 0 4px 16px rgba(0, 0, 0, 0.45);
 
   font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
+  /* Controles nativos (checkbox, date, scrollbar) en modo oscuro. */
+  color-scheme: dark;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -65,6 +70,52 @@ html,
 body {
   margin: 0;
   height: 100%;
+}
+
+/* Fondo translúcido + blur detrás de cada tarjeta/menú: el mapa se lee a
+   través sin que el contenido pierda legibilidad. NOTA: `.app-consola` /
+   `.cons-seg` quedan fuera a propósito — backdrop-filter convierte al
+   elemento en bloque contenedor de sus descendientes `position: fixed`, lo
+   que rompería la topbar, el modal de filtros y los overlays internos. */
+.panel-filtros,
+.panel-plan,
+.panel-detalle,
+.mc-menu,
+.sel-dropdown,
+.herr-grupo,
+.bh-busqueda input,
+.bh-resultados,
+.pc-modal,
+.mc-modal,
+.fms-modal,
+.ms-modal,
+.ma-modal,
+.pa-modal,
+.mapa-boton-base,
+.maplibregl-popup-content {
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+}
+
+/* Scrollbars temáticos: finos, transparentes de riel y con el mismo gris
+   translúcido del HUD — sin ensanchar el elemento que los contiene. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 #root {

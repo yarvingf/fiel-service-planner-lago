@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
 import { useDatosStore } from '@/state/datosStore'
 import { useAuthStore } from '@/state/authStore'
@@ -28,6 +28,54 @@ export function PanelPlan() {
   // no perder el import dinámico ya cargado ni el estado interno del modal.
   const [modalCargado, setModalCargado] = useState(false)
 
+  // Posición arrastrable del panel — persistida en localStorage para que
+  // quede donde el usuario la dejó entre sesiones.
+  const POS_KEY = 'fsp.panelPlan.pos'
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const raw = localStorage.getItem(POS_KEY)
+      if (raw) {
+        const p = JSON.parse(raw) as { x?: unknown; y?: unknown }
+        if (typeof p.x === 'number' && typeof p.y === 'number') return { x: p.x, y: p.y }
+      }
+    } catch {
+      /* posición guardada inválida — se usa la por defecto */
+    }
+    return null
+  })
+  const asideRef = useRef<HTMLElement | null>(null)
+
+  const iniciarArrastre = (e: ReactPointerEvent) => {
+    // Solo el header arrastra; botones/inputs del header siguen clickeables.
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button, input')) return
+    const el = asideRef.current
+    if (!el) return
+    e.preventDefault()
+    const rect = el.getBoundingClientRect()
+    const dx = e.clientX - rect.left
+    const dy = e.clientY - rect.top
+    const mover = (ev: PointerEvent) => {
+      setPos({
+        x: Math.min(Math.max(ev.clientX - dx, 4), Math.max(4, window.innerWidth - rect.width - 4)),
+        y: Math.min(Math.max(ev.clientY - dy, 4), Math.max(4, window.innerHeight - rect.height - 4)),
+      })
+    }
+    const soltar = () => {
+      window.removeEventListener('pointermove', mover)
+      window.removeEventListener('pointerup', soltar)
+      const r = asideRef.current?.getBoundingClientRect()
+      if (r) {
+        try {
+          localStorage.setItem(POS_KEY, JSON.stringify({ x: Math.round(r.left), y: Math.round(r.top) }))
+        } catch {
+          /* localStorage lleno o bloqueado — no persistir */
+        }
+      }
+    }
+    window.addEventListener('pointermove', mover)
+    window.addEventListener('pointerup', soltar)
+  }
+
   const delDia = useMemo(() => asignaciones.filter((a) => a.fecha === fecha), [asignaciones, fecha])
   const totalPozos = pozos.filter((p) => p.activo && !p.reemplazado).length
 
@@ -50,8 +98,12 @@ export function PanelPlan() {
   }, [delDia, instPorId])
 
   return (
-    <aside className={`panel-plan${colapsado ? ' pp-colapsado' : ''}`}>
-      <div className="pp-header">
+    <aside
+      ref={asideRef}
+      className={`panel-plan${colapsado ? ' pp-colapsado' : ''}`}
+      style={pos ? { left: pos.x, top: pos.y, right: 'auto' } : undefined}
+    >
+      <div className="pp-header" onPointerDown={iniciarArrastre} title="Arrastrar para mover el panel">
         <span className="pp-titulo">Plan de operaciones</span>
         {perfil && (
           <span className="pp-usuario" title={`${perfil.nombre} (${perfil.rol})`}>
@@ -98,7 +150,7 @@ export function PanelPlan() {
               <span className="pp-stat-l">instal.</span>
             </div>
             <div className="pp-stat">
-              <span className="pp-stat-n">{cuadrillas.length}</span>
+              <span className="pp-stat-n">{cuadrillas.filter((c) => c.activa).length}</span>
               <span className="pp-stat-l">cuadrillas</span>
             </div>
             <div className="pp-stat pp-stat-destacado">

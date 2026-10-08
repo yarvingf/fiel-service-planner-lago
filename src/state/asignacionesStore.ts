@@ -5,7 +5,8 @@ import { usuarioActualId } from './authStore'
 import {
   listarCuadrillas,
   crearCuadrilla,
-  eliminarCuadrilla,
+  desactivarCuadrilla,
+  reactivarCuadrilla,
   listarAsignaciones,
   guardarAsignaciones,
   borrarAsignaciones,
@@ -73,7 +74,7 @@ export interface AsignacionPendiente {
   conflictos: ConflictoAsignacion[]
 }
 
-const PALETA_CUADRILLAS = [
+export const PALETA_CUADRILLAS = [
   '#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed',
   '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5',
 ]
@@ -142,7 +143,7 @@ interface EstadoAsignaciones {
   /** Limpia todo al cerrar sesión. */
   reiniciar: () => void
 
-  agregarCuadrilla: (nombre: string) => Promise<void>
+  agregarCuadrilla: (nombre: string, color?: string) => Promise<void>
   quitarCuadrilla: (id: string) => Promise<void>
   setFecha: (fecha: string) => void
   setColorPor: (m: 'estatus' | 'cuadrilla') => void
@@ -270,10 +271,25 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
       usuarioId: null,
     }),
 
-  agregarCuadrilla: async (nombre) => {
-    const color = PALETA_CUADRILLAS[get().cuadrillas.length % PALETA_CUADRILLAS.length]
+  agregarCuadrilla: async (nombre, colorElegido) => {
+    const color = colorElegido ?? PALETA_CUADRILLAS[get().cuadrillas.length % PALETA_CUADRILLAS.length]
     set({ guardando: true, errorPlan: null })
     try {
+      // Si existe una cuadrilla archivada con ese nombre se reactiva (mismo
+      // id → su historial de asignaciones se reconecta automáticamente).
+      const archivada = get().cuadrillas.find(
+        (c) => !c.activa && c.nombre.toUpperCase() === nombre.trim().toUpperCase(),
+      )
+      if (archivada) {
+        await reactivarCuadrilla(archivada.id, color)
+        set((s) => ({
+          guardando: false,
+          cuadrillas: s.cuadrillas.map((c) =>
+            c.id === archivada.id ? { ...c, activa: true, color } : c,
+          ),
+        }))
+        return
+      }
       const creada = await crearCuadrilla(nombre.trim(), color)
       set((s) => ({ guardando: false, cuadrillas: [...s.cuadrillas, creada] }))
     } catch (e) {
@@ -284,12 +300,13 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
   quitarCuadrilla: async (id) => {
     set({ guardando: true, errorPlan: null })
     try {
-      // El cascade de la FK elimina también sus asignaciones en la base.
-      await eliminarCuadrilla(id)
+      // Borrado lógico: activa=false. Las asignaciones quedan intactas —
+      // el historial conserva que el objetivo estuvo con esta cuadrilla.
+      await desactivarCuadrilla(id)
       set((s) => ({
         guardando: false,
-        cuadrillas: s.cuadrillas.filter((c) => c.id !== id),
-        asignaciones: s.asignaciones.filter((a) => a.cuadrillaId !== id),
+        cuadrillas: s.cuadrillas.map((c) => (c.id === id ? { ...c, activa: false } : c)),
+        cuadrillaActiva: s.cuadrillaActiva === id ? null : s.cuadrillaActiva,
       }))
     } catch (e) {
       set({ guardando: false, errorPlan: mensaje(e) })

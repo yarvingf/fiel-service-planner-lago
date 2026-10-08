@@ -3,11 +3,11 @@
   position: fixed;
   z-index: 60;
   width: 250px;
-  background: #fff;
-  color: #0f172a;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.28);
+  background: var(--hud-bg);
+  color: var(--hud-text);
+  border: 1px solid var(--hud-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   padding: 6px;
   font-size: 12px;
   display: flex;
@@ -20,7 +20,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px 8px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--hud-navy-soft);
   margin-bottom: 4px;
 }
 .mc-codigo { font-weight: 700; font-size: 13px; }
@@ -31,14 +31,14 @@
   padding: 1px 7px;
   border-radius: 999px;
 }
-.mc-badge-inst { background: #475569; }
+.mc-badge-inst { background: rgba(255, 255, 255, 0.18); }
 
 .mc-info {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
-  color: #64748b;
+  color: var(--hud-muted);
   font-size: 11px;
 }
 .mc-punto {
@@ -60,13 +60,13 @@
   padding: 7px 8px;
   border-radius: 6px;
   font-size: 12px;
-  color: #0f172a;
+  color: var(--hud-text);
   cursor: pointer;
 }
-.mc-item:hover:not(:disabled) { background: #f1f5f9; }
-.mc-item:disabled { color: #94a3b8; cursor: default; }
-.mc-detalle { color: #64748b; font-size: 11px; }
-.mc-cancelar { color: #64748b; border-top: 1px solid #f1f5f9; margin-top: 4px; }
+.mc-item:hover:not(:disabled) { background: var(--hud-navy-soft); }
+.mc-item:disabled { color: #a1a1aa; cursor: default; }
+.mc-detalle { color: var(--hud-muted); font-size: 11px; }
+.mc-cancelar { color: var(--hud-muted); border-top: 1px solid var(--hud-navy-soft); margin-top: 4px; }
 
 /* Sub-lista de cuadrillas cuando no hay una activa */
 .mc-cuadrillas {
@@ -87,5 +87,5 @@
   font-size: 12px;
   cursor: pointer;
 }
-.mc-cuadrillas button:hover { background: #f1f5f9; }
-.mc-vacio { color: #94a3b8; padding: 4px 8px; }
+.mc-cuadrillas button:hover { background: var(--hud-navy-soft); }
+.mc-vacio { color: #a1a1aa; padding: 4px 8px; }

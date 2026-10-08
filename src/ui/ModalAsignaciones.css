@@ -2,7 +2,7 @@
 .ma-fondo {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(0, 0, 0, 0.32);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -10,11 +10,11 @@
 }
 
 .ma-modal {
-  background: #ffffff;
+  background: var(--hud-bg);
   color: var(--hud-text);
   border: 1px solid var(--hud-border);
   border-radius: 8px;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
   width: min(1240px, 98vw);
   max-height: 88vh;
   display: flex;
@@ -44,9 +44,9 @@
 
 .ma-error {
   font-size: 11px;
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.45);
+  border: 1px solid rgba(248, 113, 113, 0.4);
   border-radius: 6px;
   padding: 5px 8px;
   margin-bottom: 8px;
@@ -99,14 +99,14 @@
 .ma-grid { margin-top: 2px; }
 .ma-grid .ma-codigo { width: auto; }
 /* Celda con edición local aún sin aplicar (controles de texto de la grilla). */
-.ma-cell-pendiente { background: #fef3c7 !important; }
+.ma-cell-pendiente { background: rgba(251, 191, 36, 0.22) !important; }
 /* Estilo Excel: celda activa con borde verde, rango en azulito, copiado con
    "marching ants" (borde punteado verde) hasta pegar o Esc. */
 .ma-grid .ag-cell-focus:not(.ag-cell-inline-editing) {
   outline: 2px solid #217346;
   outline-offset: -2px;
 }
-.ma-cell-rango { background: #dbeafe !important; }
+.ma-cell-rango { background: rgba(96, 165, 250, 0.22) !important; }
 .ma-cell-copiada {
   outline: 2px dashed #217346 !important;
   outline-offset: -2px;
@@ -211,7 +211,7 @@
 .ma-copiar {
   border: none;
   background: transparent;
-  color: #cbd5e1;
+  color: #d4d4d8;
   font-size: 13px;
   cursor: pointer;
   line-height: 1;
@@ -230,7 +230,7 @@
   padding: 0 4px;
   line-height: 1;
 }
-.ma-limpiar-grupo:hover { color: #dc2626; }
+.ma-limpiar-grupo:hover { color: #f87171; }
 .ma-limpiar-grupo:disabled { opacity: 0.4; cursor: default; }
 .ma-limpiar-grupo + .ma-n { margin-left: 0; }
 
@@ -244,7 +244,7 @@
   border-radius: 5px;
   padding: 3px 7px;
   font-size: 12px;
-  background: #ffffff;
+  background: var(--hud-bg-soft);
   color: var(--hud-text);
 }
 .ma-input-nota { flex: 1; }
@@ -256,20 +256,20 @@
 }
 
 .ma-input:focus { outline: none; border-color: var(--hud-navy); }
-.ma-input::placeholder { color: #cbd5e1; }
+.ma-input::placeholder { color: var(--hud-muted); }
 .ma-input:disabled { background: var(--hud-bg-soft); }
 
 .ma-quitar {
   border: none;
   background: transparent;
-  color: #cbd5e1;
+  color: #d4d4d8;
   font-size: 15px;
   cursor: pointer;
   line-height: 1;
   padding: 2px 4px;
   flex: 0 0 auto;
 }
-.ma-quitar:hover { color: #dc2626; }
+.ma-quitar:hover { color: #f87171; }
 .ma-quitar:disabled { opacity: 0.4; cursor: default; }
 
 .ma-pie {
@@ -282,7 +282,7 @@
 }
 .ma-exportar, .ma-whatsapp {
   border: 1px solid var(--hud-navy);
-  background: #ffffff;
+  background: var(--hud-bg-soft);
   color: var(--hud-navy);
   border-radius: 6px;
   padding: 6px 14px;

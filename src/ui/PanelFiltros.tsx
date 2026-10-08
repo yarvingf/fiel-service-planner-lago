@@ -59,14 +59,13 @@ function resumenMulti(seleccion: string[] | null, total: number): string {
   return `${seleccion.length}/${total}`
 }
 
-export function PanelFiltros() {
+export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar: () => void }) {
   const { filtros, setFiltros, alternarEn, limpiar } = useFiltrosStore()
   const { pozos, instalaciones, visitas } = useDatosStore()
   const nSeleccion = useAsignacionesStore((s) => s.seleccion.length)
   const limpiarSeleccion = useAsignacionesStore((s) => s.limpiarSeleccion)
   const asignaciones = useAsignacionesStore((s) => s.asignaciones)
   const fechaPlan = useAsignacionesStore((s) => s.fecha)
-  const [colapsado, setColapsado] = useState(false)
 
   const instPorId = useMemo(() => new Map(instalaciones.map((i) => [i.id, i])), [instalaciones])
 
@@ -126,22 +125,18 @@ export function PanelFiltros() {
   const tiposPresentes = TIPOS_INSTALACION_VISIBLES.filter((t) => instalaciones.some((i) => i.tipo === t))
   const hayCambios = JSON.stringify(filtros) !== JSON.stringify(FILTROS_DEFAULT)
 
+  if (!abierto) return null
+
   return (
-    <aside className={`panel-filtros${colapsado ? ' pf-colapsado' : ''}`}>
+    <div className="pf-fondo" onClick={onCerrar}>
+    <aside className="panel-filtros" onClick={(e) => e.stopPropagation()}>
       <div className="pf-header">
-        <button
-          type="button"
-          className="pf-colapso"
-          title={colapsado ? 'Expandir filtros' : 'Colapsar filtros'}
-          onClick={() => setColapsado((v) => !v)}
-        >
-          {colapsado ? '▸' : '▾'}
-        </button>
         <span>Filtros</span>
-        {!colapsado && <span className="pf-contador">{visibles} / {total} pozos</span>}
+        <span className="pf-contador">{visibles} / {total} pozos</span>
+        <button type="button" className="pf-colapso" onClick={onCerrar} aria-label="Cerrar">×</button>
       </div>
 
-      {!colapsado && filtros.soloIds !== null && (
+      {filtros.soloIds !== null && (
         <button
           type="button"
           className="pf-deseleccionar"
@@ -152,13 +147,13 @@ export function PanelFiltros() {
         </button>
       )}
 
-      {!colapsado && nSeleccion > 0 && (
+      {nSeleccion > 0 && (
         <button type="button" className="pf-deseleccionar" onClick={limpiarSeleccion}>
           Deseleccionar todo ({nSeleccion})
         </button>
       )}
 
-      {!colapsado && <>
+      <>
       <Seccion
         titulo="Estatus"
         resumen={`${filtros.estatus.length}/${OPCIONES_ESTATUS.length}`}
@@ -332,7 +327,8 @@ export function PanelFiltros() {
       {hayCambios && (
         <button type="button" className="pf-limpiar" onClick={limpiar}>Limpiar filtros</button>
       )}
-      </>}
+      </>
     </aside>
+    </div>
   )
 }

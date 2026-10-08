@@ -94,6 +94,12 @@ function DetallePozo({ pozo }: { pozo: PozoConCompletaciones }) {
   const d = calcularDerivadosPozo(pozo.completaciones)
   const ef = pozo.efId ? instPorId.get(pozo.efId)?.codigo ?? '—' : '—'
   const mg = pozo.mgId ? instPorId.get(pozo.mgId)?.codigo ?? '—' : '—'
+  // Diferido = BNPD − POT total del pozo (POT viene del Excel por arena).
+  // Negativo/rojo = producción por debajo del potencial (diferido real);
+  // positivo/verde = produciendo por encima del potencial.
+  const hayPot = pozo.completaciones.some((c) => c.pot !== null)
+  const potTotal = pozo.completaciones.reduce((acc, c) => acc + (c.pot ?? 0), 0)
+  const diferido = hayPot ? d.bnpdActivo - potTotal : null
   // El mapa completo se recalcula solo si cambia `visitas` (tras un sync),
   // no en cada clic de selección de pozo — evita reconstruirlo por cada click.
   const mapaUltimaVisita = useMemo(() => ultimaVisitaPorPozo(visitas), [visitas])
@@ -113,9 +119,12 @@ function DetallePozo({ pozo }: { pozo: PozoConCompletaciones }) {
         <span>CAT</span><b>{d.categorias.join(', ') || '—'}</b>
         <span>EF</span><b>{ef}</b>
         <span>MG</span><b>{mg}</b>
-        <span>BNPD activo</span><b>{fmtNum(d.bnpdActivo)}</b>
-        <span>Diferido confirmado</span><b>{fmtNum(d.potencialDiferidoConfirmado)}</b>
-        <span>Diferido posible</span><b>{fmtNum(d.potencialDiferidoPosible)}</b>
+        <span>BNPD</span><b>{fmtNum(d.bnpdActivo)}</b>
+        <span>POT</span><b>{hayPot ? fmtNum(potTotal) : '—'}</b>
+        <span>Diferido</span>
+        <b className={diferido === null ? '' : diferido < 0 ? 'pd-neg' : diferido > 0 ? 'pd-pos' : ''}>
+          {diferido === null ? '—' : diferido > 0 ? `+${fmtNum(diferido)}` : fmtNum(diferido)}
+        </b>
         {d.diferidoIncompleto && <span className="pd-aviso">⚠ diferido incompleto (POT sin reportar)</span>}
         <span>Coordenadas</span><b>{pozo.lat?.toFixed(5)}, {pozo.lon?.toFixed(5)}</b>
       </div>
@@ -180,15 +189,16 @@ function DetalleInstalacion({ inst }: { inst: Instalacion }) {
 
 export function PanelDetalle() {
   const { seleccionado, pozos, instalaciones, seleccionar } = useDatosStore()
-  if (!seleccionado) return null
 
-  const pozo = seleccionado.kind === 'pozo' ? pozos.find((p) => p.id === seleccionado.id) : undefined
-  const inst = seleccionado.kind === 'instalacion' ? instalaciones.find((i) => i.id === seleccionado.id) : undefined
-  if (!pozo && !inst) return null
+  const pozo = seleccionado?.kind === 'pozo' ? pozos.find((p) => p.id === seleccionado.id) : undefined
+  const inst = seleccionado?.kind === 'instalacion' ? instalaciones.find((i) => i.id === seleccionado.id) : undefined
 
+  // La ficha queda siempre visible: sin selección es solo la tarjeta vacía.
   return (
     <aside className="panel-detalle">
-      <button type="button" className="pd-cerrar" onClick={() => seleccionar(null)} aria-label="Cerrar">×</button>
+      {(pozo || inst) && (
+        <button type="button" className="pd-cerrar" onClick={() => seleccionar(null)} aria-label="Cerrar">×</button>
+      )}
       {pozo && <DetallePozo pozo={pozo} />}
       {inst && <DetalleInstalacion inst={inst} />}
     </aside>

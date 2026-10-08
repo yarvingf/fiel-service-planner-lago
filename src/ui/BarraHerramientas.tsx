@@ -6,6 +6,7 @@ import { useAsignacionesStore, type IdObjetivo } from '@/state/asignacionesStore
 // Los modales solo se descargan al abrirlos por primera vez (chunks aparte).
 const ModalCoa = lazy(() => import('./ModalCoa').then((m) => ({ default: m.ModalCoa })))
 const ModalListaPozos = lazy(() => import('./ModalListaPozos').then((m) => ({ default: m.ModalListaPozos })))
+import { PanelFiltros } from './PanelFiltros'
 import { HerramientaMenu } from './HerramientaMenu'
 import { CapturaMenu } from './CapturaMenu'
 import { mapaInstancia } from '@/map/mapaInstancia'
@@ -46,6 +47,7 @@ export function BarraHerramientas() {
   const [activo, setActivo] = useState(0)
   const [modalCoa, setModalCoa] = useState(false)
   const [modalLista, setModalLista] = useState(false)
+  const [modalFiltros, setModalFiltros] = useState(false)
   const inputArchivo = useRef<HTMLInputElement>(null)
   const inputBusqueda = useRef<HTMLInputElement>(null)
 
@@ -129,8 +131,10 @@ export function BarraHerramientas() {
 
   return (
     <>
-    <div className="barra-herramientas">
-      <div className="bh-busqueda">
+    {/* Topbar flotante estilo Google Maps: búsqueda + herramientas de
+        selección + botón de filtros (abre el modal PanelFiltros). */}
+    <div className="bh-topbar">
+    <div className="bh-busqueda">
         <input
           ref={inputBusqueda}
           type="text"
@@ -219,11 +223,23 @@ export function BarraHerramientas() {
             })}
           </ul>
         )}
-      </div>
+    </div>
 
-      <HerramientaMenu />
-      <CapturaMenu />
+    <HerramientaMenu />
+    <CapturaMenu />
 
+    <button
+      type="button"
+      className="bh-boton bh-boton-filtro"
+      title="Abrir filtros del mapa"
+      onClick={() => setModalFiltros(true)}
+    >
+      ⏷ Filtros
+    </button>
+    </div>
+
+    {/* Segmento derecho de la consola: utilidades globales */}
+    <div className="cons-seg cons-utilidades">
       <button
         type="button"
         className="bh-boton"
@@ -276,6 +292,7 @@ export function BarraHerramientas() {
       </div>
     )}
 
+    <PanelFiltros abierto={modalFiltros} onCerrar={() => setModalFiltros(false)} />
     {modalCoa &&
       createPortal(
         <Suspense fallback={null}>

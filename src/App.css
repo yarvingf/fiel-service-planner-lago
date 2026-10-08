@@ -1,33 +1,47 @@
-/* Composición asimétrica: rail de filtros acoplado a la izquierda (resta
-   ancho real al mapa, sin overlays que colisionen) + lienzo de mapa a la
-   derecha donde las utilidades flotan en las esquinas. */
+/* Composición estilo Google Maps: el mapa ocupa toda la ventana y cada
+   pieza de interfaz es una tarjeta flotante — nada apegado a los bordes. */
 .app-layout {
   display: flex;
-  flex-direction: row;
   flex: 1 1 auto;
   min-height: 0;
-}
-
-.app-rail {
-  width: 272px;
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: var(--hud-bg-soft);
-  border-right: 1px solid var(--hud-border);
-  transition: width 0.18s ease;
-}
-
-/* Con el panel colapsado el rail se reduce a una tira — el mapa gana ancho. */
-.app-rail:has(.pf-colapsado) {
-  width: 44px;
 }
 
 .app-mapa {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* Consola inferior flotante en 3 segmentos (estilo AoE2): tarjeta única
+   con márgenes y esquinas redondeadas que agrupa los tres segmentos. */
+.app-consola {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  border-radius: 12px;
+  box-shadow: var(--hud-shadow-float);
+  z-index: 10;
+}
+
+/* Panel enmarcado de la consola — los segmentos son flex-items; el orden
+   visual lo manda `order` (los componentes renderizan en otro orden DOM). */
+.cons-seg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--hud-border);
+  border-radius: 8px;
+  background: var(--hud-bg-soft);
+  padding: 5px 8px;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .app-splash {

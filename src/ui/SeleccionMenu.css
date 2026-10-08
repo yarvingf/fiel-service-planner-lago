@@ -7,9 +7,9 @@
   display: flex;
   gap: 2px;
   padding: 2px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--hud-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--hud-bg);
 }
 
 .herr-boton {
@@ -22,10 +22,10 @@
   background: transparent;
   border-radius: 6px;
   font-size: 15px;
-  color: #0f172a;
+  color: var(--hud-text);
   cursor: pointer;
 }
-.herr-boton:hover { background: #f1f5f9; }
+.herr-boton:hover { background: var(--hud-navy-soft); }
 .herr-boton-activo {
   background: var(--hud-navy);
   color: #ffffff;
@@ -33,7 +33,7 @@
 .herr-boton-activo:hover { background: var(--hud-navy-dark); }
 /* Herramienta activada para un solo uso (clic derecho): borde punteado en vez de sólido. */
 .herr-boton-unavez {
-  background: #ffffff;
+  background: var(--hud-bg);
   color: var(--hud-navy);
   outline: 2px dashed var(--hud-navy);
   outline-offset: -2px;
@@ -43,6 +43,9 @@
   position: fixed;
   top: auto;
   left: auto;
+  /* El base .sel-dropdown trae `bottom` para abrir hacia arriba; este menú
+     se posiciona con coordenadas fijas inline, así que se anula. */
+  bottom: auto;
 }
 
 .sel-fondo {
@@ -53,18 +56,19 @@
 
 .sel-dropdown {
   position: absolute;
+  /* Las herramientas viven en la topbar: los desplegables abren hacia abajo. */
   top: calc(100% + 6px);
   left: 0;
   z-index: 41;
   width: 260px;
   max-height: 380px;
   overflow-y: auto;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   padding: 10px;
-  color: #0f172a;
+  color: var(--hud-text);
 }
 
 .sel-titulo {
@@ -72,7 +76,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #94a3b8;
+  color: var(--hud-muted);
   margin: 10px 0 6px;
 }
 .sel-titulo:first-child { margin-top: 0; }
@@ -87,9 +91,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #0f172a;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-bg-soft);
+  color: var(--hud-text);
   border-radius: 7px;
   padding: 7px 10px;
   font-size: 13px;
@@ -97,7 +101,7 @@
   cursor: pointer;
   text-align: left;
 }
-.sel-modo:hover { background: #f8fafc; }
+.sel-modo:hover { background: var(--hud-navy-soft); }
 .sel-modo-icono { font-size: 14px; width: 16px; text-align: center; }
 
 .sel-modo-activo {
@@ -116,12 +120,12 @@
   border-radius: 5px;
   cursor: pointer;
 }
-.sel-item:hover { background: #f1f5f9; }
+.sel-item:hover { background: var(--hud-navy-soft); }
 .sel-item input { cursor: pointer; }
 .sel-item-principal { font-weight: 600; }
 
 .sel-item-radio {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--hud-border);
   border-radius: 7px;
   padding: 7px 8px;
   font-weight: 600;
@@ -134,7 +138,7 @@
 }
 
 .sel-tipos {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--hud-border);
   margin-top: 4px;
   padding-top: 4px;
 }
@@ -142,8 +146,8 @@
 .sel-resumen {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--hud-border);
   font-size: 11px;
-  color: #64748b;
+  color: var(--hud-muted);
   font-style: italic;
 }

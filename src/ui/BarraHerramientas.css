@@ -1,47 +1,68 @@
-/* Utilidades ancladas arriba-izquierda del lienzo — el centro queda libre
-   para el mapa (composición asimétrica con el plan arriba-derecha). */
-.barra-herramientas {
-  position: absolute;
-  top: 12px;
-  left: 16px;
+/* Topbar flotante estilo Google Maps: pill de búsqueda + herramientas de
+   selección/captura + botón ⏷ Filtros. Vive fuera de la consola (fixed). */
+.bh-topbar {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 12;
   display: flex;
+  align-items: center;
   gap: 8px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  max-width: calc(100% - 300px);
-  z-index: 11;
+}
+.bh-topbar .herr-grupo,
+.bh-topbar .bh-boton {
+  box-shadow: var(--hud-shadow-float);
 }
 
+/* Botón de filtros dentro de la topbar */
+.bh-boton-filtro { flex: 0 0 auto; }
+
+/* Segmento derecho: utilidades globales (COA, Lista, Importar, Alertas). */
+.cons-utilidades {
+  order: 3;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 4px;
+}
+.cons-utilidades .bh-boton {
+  padding: 5px 10px;
+  font-size: 12px;
+  box-shadow: none;
+  background: var(--hud-bg);
+}
+
+/* Pill de búsqueda dentro de la topbar (relativa para anclar resultados). */
 .bh-busqueda {
   position: relative;
-  width: 340px;
+  width: min(360px, 42vw);
 }
 
 .bh-busqueda input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border: 1px solid var(--hud-border);
+  border-radius: 10px;
+  padding: 10px 14px;
   font-size: 13px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--hud-bg);
+  color: var(--hud-text);
+  box-shadow: var(--hud-shadow-float);
 }
 
+/* La pill está arriba: los resultados abren hacia abajo. */
 .bh-resultados {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
   margin: 0;
   padding: 4px;
   list-style: none;
-  background: #fff;
-  color: #0f172a;
-  border: 1px solid #e2e8f0;
+  background: var(--hud-bg);
+  color: var(--hud-text);
+  border: 1px solid var(--hud-border);
   border-radius: 8px;
-  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   max-height: 320px;
   overflow-y: auto;
 }
@@ -65,15 +86,15 @@
   cursor: pointer;
   text-align: left;
   font-size: 12px;
-  color: #0f172a;
+  color: var(--hud-text);
 }
-.bh-resultados button:hover { background: #f1f5f9; }
-.bh-resultados b { font-size: 13px; color: #0f172a; }
-.bh-resultados span { color: #64748b; font-size: 11px; }
+.bh-resultados button:hover { background: var(--hud-navy-soft); }
+.bh-resultados b { font-size: 13px; color: var(--hud-text); }
+.bh-resultados span { color: var(--hud-muted); font-size: 11px; }
 
 /* Fila de resultado: botón principal (vuela al mapa) + acciones al borde. */
 .bh-resultados button.bh-res { flex: 1; min-width: 0; }
-.bh-resultados button.bh-res-activo { background: #e2e8f0; }
+.bh-resultados button.bh-res-activo { background: var(--hud-border); }
 
 .bh-resultados button.bh-res-acc {
   flex: 0 0 auto;
@@ -82,9 +103,9 @@
   justify-content: center;
   padding: 6px 10px;
   font-weight: 700;
-  color: #475569;
+  color: var(--hud-muted);
 }
-.bh-resultados button.bh-res-acc-on { color: #2563eb; }
+.bh-resultados button.bh-res-acc-on { color: var(--hud-navy); }
 .bh-resultados button.bh-res-asignar { color: var(--hud-navy); }
 .bh-resultados button.bh-res-acc:disabled { opacity: 0.45; cursor: default; }
 
@@ -97,31 +118,30 @@
 }
 
 .bh-resultados .bh-res-todos {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--hud-border);
   margin-bottom: 4px;
   padding-bottom: 4px;
 }
 .bh-resultados .bh-res-todos button {
-  color: #2563eb;
+  color: var(--hud-navy);
   font-weight: 600;
 }
 
 .bh-boton {
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-bg);
   border-radius: 8px;
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--hud-text);
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
   white-space: nowrap;
 }
-.bh-boton:hover { background: #f8fafc; }
+.bh-boton:hover { background: var(--hud-navy-soft); }
 .bh-boton:disabled { opacity: 0.5; cursor: default; }
 
-.bh-boton-alertas { color: #b45309; }
+.bh-boton-alertas { color: #fbbf24; }
 
 .bh-boton-activo {
   background: var(--hud-navy);
@@ -132,35 +152,35 @@
 
 .bh-captura {
   padding: 6px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--hud-border);
   border-radius: 6px;
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--hud-bg);
+  color: var(--hud-text);
   font-size: 13px;
   cursor: pointer;
 }
 
 .bh-error {
   position: absolute;
-  top: 56px;
-  left: 16px;
+  bottom: calc(100% + 8px);
+  left: 10px;
   z-index: 11;
   display: flex;
   align-items: center;
   gap: 10px;
   max-width: min(600px, 90vw);
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: rgba(127, 29, 29, 0.55);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  color: #fca5a5;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 12px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--hud-shadow);
 }
 .bh-error button {
   border: none;
   background: transparent;
-  color: #991b1b;
+  color: #fca5a5;
   font-size: 16px;
   line-height: 1;
   cursor: pointer;

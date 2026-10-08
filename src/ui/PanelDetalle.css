@@ -1,20 +1,31 @@
-/* Inspector de objetivo: flota abajo-izquierda del lienzo, encima del
-   botón "Ver satélite" y de la consola de mando de 54px. */
+/* Inspector de objetivo: tarjeta fija arriba-izquierda, debajo de la
+   topbar de búsqueda. Siempre visible (vacía si no hay selección). */
 .panel-detalle {
   position: absolute;
-  bottom: 108px;
-  left: 16px;
-  width: 320px;
-  max-height: calc(100% - 200px);
+  /* Debajo de la topbar (búsqueda + herramientas ~56px) — columna izquierda. */
+  top: 64px;
+  left: 14px;
+  /* Tamaño fijo: la ficha no cambia aunque esté vacía — siempre ocupa el
+     mismo lugar y no desplaza ni tapa otros controles al aparecer datos. */
+  /* Mismo ancho que la pill de búsqueda de la topbar (border-box para que
+     padding y borde no la ensanchen por encima del input). */
+  box-sizing: border-box;
+  width: min(360px, 42vw);
+  height: 50vh;
   overflow-y: auto;
-  background: #ffffff;
+  /* La tabla de arenas es más ancha que la ficha: sin scroll horizontal
+     visible — la tabla recorta celdas con ellipsis (ver .pd-tabla). */
+  overflow-x: hidden;
+  /* Ficha casi transparente (0.2): el mapa se lee a través; el blur del
+     backdrop-filter mantiene el texto legible. */
+  background: rgba(31, 33, 38, 0.2);
   border: 1px solid var(--hud-border);
-  border-radius: 6px;
-  box-shadow: var(--hud-shadow);
+  border-radius: 10px;
+  box-shadow: var(--hud-shadow-float);
   padding: 12px 14px;
   z-index: 10;
   font-size: 13px;
-  color: #0f172a;
+  color: var(--hud-text);
 }
 
 .pd-cerrar {
@@ -26,9 +37,9 @@
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  color: #64748b;
+  color: var(--hud-muted);
 }
-.pd-cerrar:hover { color: #0f172a; }
+.pd-cerrar:hover { color: var(--hud-text); }
 
 .pd-titulo {
   font-size: 16px;
@@ -46,11 +57,11 @@
   padding: 2px 8px;
   border-radius: 999px;
 }
-.pd-badge-inst { background: #475569; }
+.pd-badge-inst { background: rgba(255, 255, 255, 0.18); }
 
 .pd-reemplazo {
   font-size: 11px;
-  color: #64748b;
+  color: var(--hud-muted);
   font-weight: 500;
 }
 
@@ -60,12 +71,16 @@
   gap: 4px 12px;
   margin-bottom: 12px;
 }
-.pd-grid span { color: #64748b; }
+.pd-grid span { color: var(--hud-muted); }
 .pd-grid b { font-weight: 600; text-align: right; }
+
+/* Diferido (BNPD − POT): rojo si está por debajo del potencial, verde si supera. */
+.pd-neg { color: #f87171; }
+.pd-pos { color: #4ade80; }
 
 .pd-aviso {
   grid-column: 1 / -1;
-  color: #b45309;
+  color: #fbbf24;
   font-size: 12px;
 }
 
@@ -74,29 +89,39 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #475569;
+  color: var(--hud-muted);
   margin: 10px 0 6px;
 }
 
 .pd-tabla {
   width: 100%;
+  /* Layout fijo: las 8 columnas reparten el ancho de la ficha en vez de
+     exigir su ancho natural (que provocaba scroll horizontal). */
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
+}
+.pd-tabla th,
+.pd-tabla td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pd-tabla th {
   text-align: left;
   font-weight: 600;
-  color: #64748b;
-  border-bottom: 1px solid #e2e8f0;
+  color: var(--hud-muted);
+  border-bottom: 1px solid var(--hud-border);
   padding: 3px 4px;
 }
 .pd-tabla td {
   padding: 3px 4px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--hud-navy-soft);
   vertical-align: top;
 }
 .pd-yac {
-  max-width: 110px;
+  /* Excepción al nowrap de la tabla: el nombre del yacimiento sí envuelve. */
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 
@@ -115,21 +140,21 @@
   gap: 4px;
 }
 .pd-chip {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: var(--hud-navy-soft);
+  border: 1px solid var(--hud-border);
   border-radius: 6px;
   padding: 1px 7px;
   font-size: 11px;
 }
-.pd-vacio { color: #94a3b8; font-size: 12px; }
+.pd-vacio { color: #a1a1aa; font-size: 12px; }
 
 .pd-comentario {
   margin-top: 6px;
   font-size: 11px;
   line-height: 1.4;
-  color: #475569;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  color: var(--hud-muted);
+  background: var(--hud-bg-soft);
+  border: 1px solid var(--hud-border);
   border-radius: 6px;
   padding: 6px 8px;
 }
@@ -144,10 +169,10 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #475569;
+  color: var(--hud-muted);
   cursor: pointer;
 }
-.pd-historial-toggle:hover { color: #0f172a; }
+.pd-historial-toggle:hover { color: var(--hud-text); }
 .pd-historial {
   margin-top: 6px;
   max-height: 220px;
@@ -158,13 +183,14 @@
 }
 .pd-visita {
   font-size: 11px;
-  color: #334155;
-  border-bottom: 1px solid #f1f5f9;
+  color: var(--hud-muted);
+  border-bottom: 1px solid var(--hud-navy-soft);
   padding-bottom: 6px;
 }
 
-/* Tooltip del mapa (Popup de MapLibre) */
-.tt { font-size: 12px; line-height: 1.45; color: #0f172a; }
+/* Tooltip del mapa (Popup de MapLibre — el fondo oscuro se estila en
+   MapaBase.css vía .maplibregl-popup-content) */
+.tt { font-size: 12px; line-height: 1.45; color: var(--hud-text); }
 .tt-titulo { font-weight: 700; font-size: 13px; margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
 .tt-estatus {
   color: #fff;

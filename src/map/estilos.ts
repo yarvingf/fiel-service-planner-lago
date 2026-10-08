@@ -6,7 +6,7 @@ import type { Map as MaplibreMap, RasterSourceSpecification, StyleSpecification 
  * deja de estar disponible, la migración es cambiar esta URL por un estilo
  * autohospedado (p. ej. Protomaps con un .pmtiles de la región).
  */
-export const ESTILO_VECTORIAL_URL = 'https://tiles.openfreemap.org/styles/liberty'
+export const ESTILO_VECTORIAL_URL = 'https://tiles.openfreemap.org/styles/dark'
 
 /**
  * Capa satelital: Sentinel-2 cloudless de EOX (tiles.maps.eox.at).

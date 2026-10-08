@@ -161,7 +161,9 @@ export function ModalCopiarPlan({ onCerrar }: Props) {
                   </div>
                   {filas.map((a) => {
                     const conflicto = duenoHoy.get(a.objetivoId)
-                    const sinCuadrilla = !c
+                    // Archivada (borrado lógico) no recibe copias: se ve en
+                    // el historial pero no se puede asignar a ella.
+                    const sinCuadrilla = !c || !c.activa
                     return (
                       <label key={a.id} className="pa-copia-fila">
                         <input
@@ -173,7 +175,7 @@ export function ModalCopiarPlan({ onCerrar }: Props) {
                         <span className="pa-modal-codigo">{a.codigo}</span>
                         <span className="pa-copia-actividad">{a.actividad ?? ''}</span>
                         {conflicto && <span className="pa-copia-conflicto">⚠ hoy: {conflicto}</span>}
-                        {sinCuadrilla && <span className="pa-copia-conflicto">⚠ sin cuadrilla</span>}
+                        {sinCuadrilla && <span className="pa-copia-conflicto">⚠ {c ? 'cuadrilla archivada' : 'sin cuadrilla'}</span>}
                       </label>
                     )
                   })}

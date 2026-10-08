@@ -107,9 +107,20 @@ export async function crearCuadrilla(nombre: string, color: string): Promise<Cua
   return filaACuadrilla(data)
 }
 
-/** Eliminar la cuadrilla borra en cascada sus asignaciones de todas las fechas. */
-export async function eliminarCuadrilla(id: string): Promise<void> {
-  const { error } = await cliente().from('cuadrillas').delete().eq('id', id)
+/** Borrado lógico: la cuadrilla se archiva (activa=false), no se borra.
+ *  Sus asignaciones históricas conservan la referencia — en un plan viejo
+ *  sigue leyéndose "estuvo con esta cuadrilla". */
+export async function desactivarCuadrilla(id: string): Promise<void> {
+  const { error } = await cliente().from('cuadrillas').update({ activa: false }).eq('id', id)
+  if (error) throw traducirError(error)
+}
+
+/** Reactiva una cuadrilla archivada. Mismo id: sus asignaciones viejas
+ *  vuelven a apuntar a ella automáticamente. */
+export async function reactivarCuadrilla(id: string, color?: string): Promise<void> {
+  const fila: { activa: boolean; color?: string } = { activa: true }
+  if (color) fila.color = color
+  const { error } = await cliente().from('cuadrillas').update(fila).eq('id', id)
   if (error) throw traducirError(error)
 }
 

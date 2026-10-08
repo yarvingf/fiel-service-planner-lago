@@ -1,21 +1,24 @@
 /* Panel HUD lateral: blanco, acento azul marino, estilo sobrio. */
 .panel-plan {
   position: absolute;
-  /* Debajo del NavigationControl del mapa (ocupa top-right ~64px). */
-  top: 76px;
+  /* Bien por debajo del NavigationControl del mapa (zoom+brújula ~90px):
+     separación clara para que no se toquen ni se lean como un solo bloque. */
+  top: 116px;
   right: 12px;
   width: 250px;
   max-height: calc(100% - 150px);
   overflow-y: auto;
   background: var(--hud-bg);
   border: 1px solid var(--hud-border);
-  border-radius: 6px;
-  box-shadow: var(--hud-shadow);
+  border-radius: 10px;
+  box-shadow: var(--hud-shadow-float);
   padding: 10px 12px;
   z-index: 10;
   font-size: 13px;
   color: var(--hud-text);
 }
+
+
 
 .panel-plan.pp-colapsado {
   width: auto;
@@ -26,7 +29,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Zona de agarre: arrastra el panel (posición persistida en localStorage). */
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
+.pp-header:active { cursor: grabbing; }
 .pp-titulo {
   font-weight: 700;
   font-size: 11px;
@@ -63,9 +71,9 @@
 .pp-error {
   margin: 6px 0;
   font-size: 11px;
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.45);
+  border: 1px solid rgba(248, 113, 113, 0.4);
   border-radius: 6px;
   padding: 5px 8px;
 }
@@ -91,7 +99,7 @@
   border-radius: 6px;
   padding: 3px 6px;
   font-size: 12px;
-  background: #ffffff;
+  background: var(--hud-bg-soft);
   color: var(--hud-text);
 }
 .pp-color {

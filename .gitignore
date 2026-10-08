@@ -31,3 +31,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Nombre reservado de Windows: se crea al redirigir a nul desde la shell
+nul
