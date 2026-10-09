@@ -145,7 +145,13 @@ export async function listarAsignaciones(fecha: string): Promise<AsignacionRemot
 export async function guardarAsignaciones(
   fecha: string,
   cuadrillaId: string,
-  objetivos: { objetivoId: string; codigo: string }[],
+  objetivos: {
+    objetivoId: string
+    codigo: string
+    validarAjuste?: boolean
+    requiereManometro?: boolean
+    requiereNivel?: boolean
+  }[],
   asignadoPor: string,
 ): Promise<AsignacionRemota[]> {
   if (objetivos.length === 0) return []
@@ -154,6 +160,12 @@ export async function guardarAsignaciones(
     cuadrilla_id: cuadrillaId,
     objetivo_id: o.objetivoId,
     objetivo_codigo: o.codigo,
+    // Solo se envían los flags que el caller calculó (defaults por
+    // indicadores para asignaciones nuevas, valores previos en
+    // reasignaciones); los ausentes caen al default de la columna.
+    ...(o.validarAjuste !== undefined ? { validar_ajuste: o.validarAjuste } : {}),
+    ...(o.requiereManometro !== undefined ? { requiere_manometro: o.requiereManometro } : {}),
+    ...(o.requiereNivel !== undefined ? { requiere_nivel: o.requiereNivel } : {}),
     asignado_por: asignadoPor,
   }))
   const { data, error } = await cliente()

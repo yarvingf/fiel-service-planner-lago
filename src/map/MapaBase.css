@@ -5,28 +5,42 @@
   flex: 1 1 auto;
 }
 
-/* Sobre la consola de 3 segmentos — queda apilado con el inspector. */
-.mapa-boton-base {
+/* Selector de capa base (Mapa | Satélite | HD) — sobre la consola de
+   3 segmentos, queda apilado con el inspector. */
+.mapa-base-segmentado {
   position: absolute;
   bottom: 86px;
   left: 16px;
   z-index: 1;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 8px 14px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
   border-radius: 8px;
   border: 1px solid var(--hud-border);
   background: var(--hud-bg);
-  color: var(--hud-text);
-  cursor: pointer;
   box-shadow: var(--hud-shadow-float);
 }
 
-.mapa-boton-base:hover {
+.mapa-base-segmentado button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--hud-muted);
+  cursor: pointer;
+}
+
+.mapa-base-segmentado button:hover {
   background: var(--hud-navy-soft);
-  border-color: var(--hud-navy);
-  color: var(--hud-navy);
+  color: var(--hud-text);
+}
+
+.mapa-base-segmentado button.mapa-base-activo {
+  background: var(--hud-navy);
+  color: #ffffff;
 }
 
 

@@ -18,6 +18,7 @@ import {
   type ItemCopiaPlan,
 } from '@/data/persistencia'
 import { agruparCambiosLote } from '@/data/loteCambios'
+import { defaultsChecklistAsignacion } from '@/domain/indicadores'
 
 /** Objetivo de asignación/selección: id prefijado con su kind ("pozo|x" / "inst|x"). */
 export type IdObjetivo = string
@@ -432,10 +433,30 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
     }
 
     const codigos = mapaCodigos()
-    const items = escribir.map((objetivoId) => ({
-      objetivoId,
-      codigo: codigos.get(objetivoId) ?? objetivoId,
-    }))
+    const indicadores = useDatosStore.getState().indicadores
+    // Checklist previo por objetivo: al reasignar se conserva lo que el
+    // usuario editó a mano; solo las asignaciones nuevas reciben el default
+    // inteligente (manómetro/nivel según indicadores recientes del pozo).
+    const previos = new Map(
+      s.asignaciones.filter((a) => a.fecha === s.fecha).map((a) => [a.objetivoId, a] as const),
+    )
+    const items = escribir.map((objetivoId) => {
+      const prev = previos.get(objetivoId)
+      const checklist = prev
+        ? {
+            validarAjuste: prev.validarAjuste,
+            requiereManometro: prev.requiereManometro,
+            requiereNivel: prev.requiereNivel,
+          }
+        : objetivoId.startsWith('pozo|')
+          ? defaultsChecklistAsignacion(indicadores, objetivoId.slice(5))
+          : { validarAjuste: false, requiereManometro: false, requiereNivel: false }
+      return {
+        objetivoId,
+        codigo: codigos.get(objetivoId) ?? objetivoId,
+        ...checklist,
+      }
+    })
 
     set({ guardando: true, errorPlan: null })
     try {

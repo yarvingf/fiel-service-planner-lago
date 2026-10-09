@@ -92,8 +92,11 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
   // Pozos con algún indicador elegido dentro del periodo — el mismo set que
   // alimenta la expresión del mapa (filtros.ts).
   const idsIndicador = useMemo(
-    () => pozosConIndicador(indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo),
-    [indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo],
+    () =>
+      pozosConIndicador(indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo, {
+        desde: filtros.indicadorDesde,
+      }),
+    [indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo, filtros.indicadorDesde],
   )
 
   // Conteo de pozos visibles con la misma lógica que la expresión del mapa,
@@ -325,6 +328,19 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
                 ))}
               </select>
             </label>
+            {filtros.indicadorPeriodo === 'desde' && (
+              <label className="pf-toggle" title="El intervalo va desde esta fecha hasta hoy">
+                Desde:{' '}
+                <input
+                  type="date"
+                  className="pf-select"
+                  value={filtros.indicadorDesde ?? ''}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setFiltros({ indicadorDesde: e.target.value || null })}
+                />{' '}
+                → hoy
+              </label>
+            )}
           </>
         )}
       </Seccion>

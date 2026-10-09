@@ -3,7 +3,7 @@ import Map, { NavigationControl, ScaleControl, type MapRef } from 'react-map-gl/
 import { setWorkerUrl, type MapLayerMouseEvent } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { agregarFuenteSatelite, aplicarModoBase, limpiarCapasIrrelevantes, ESTILO_VECTORIAL_URL } from './estilos'
+import { agregarFuenteSatelite, aplicarModoBase, limpiarCapasIrrelevantes, ESTILO_VECTORIAL_URL, type ModoBaseMapa } from './estilos'
 import { agregarCapasMarcadores, actualizarDatosMarcadores, aplicarColorPor, ID_CAPA_POZOS, ID_CAPA_INSTALACIONES } from './capasMarcadores'
 import { conectarTooltip, conectarSeleccion } from './tooltip'
 import { aplicarFiltros } from './filtros'
@@ -21,7 +21,13 @@ import { useAsignacionesStore, type ModoSeleccion } from '@/state/asignacionesSt
 import { MenuContextual, type PosMenuContextual } from '@/ui/MenuContextual'
 import './MapaBase.css'
 
-type ModoBase = 'vectorial' | 'satelital'
+type ModoBase = ModoBaseMapa
+
+const OPCIONES_BASE: { modo: ModoBase; etiqueta: string }[] = [
+  { modo: 'vectorial', etiqueta: 'Mapa' },
+  { modo: 'satelital', etiqueta: 'Satélite' },
+  { modo: 'satelitalHd', etiqueta: 'HD' },
+]
 
 /**
  * Vista inicial centrada en el Lago de Maracaibo, cubriendo los campos de
@@ -36,7 +42,7 @@ setWorkerUrl(maplibreWorkerUrl)
 
 export function MapaBase() {
   const mapRef = useRef<MapRef | null>(null)
-  const [modoBase, setModoBase] = useState<ModoBase>('satelital')
+  const [modoBase, setModoBase] = useState<ModoBase>('satelitalHd')
   const [mapaListo, setMapaListo] = useState(false)
   const [menuContextual, setMenuContextual] = useState<PosMenuContextual | null>(null)
 
@@ -66,8 +72,11 @@ export function MapaBase() {
   // periodo — se calcula JS-side sobre la tabla reducida pozo_indicadores
   // (~miles de filas), no sobre el historial completo.
   const idsIndicador = useMemo(
-    () => pozosConIndicador(indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo),
-    [indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo],
+    () =>
+      pozosConIndicador(indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo, {
+        desde: filtros.indicadorDesde,
+      }),
+    [indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo, filtros.indicadorDesde],
   )
 
   // Ids de instalaciones referenciadas (efId/mgId) por los pozos que pasan los
@@ -96,7 +105,7 @@ export function MapaBase() {
     // el lago, generan warnings de sprites ausentes). Antes de aplicarModoBase
     // para que no queden capturadas en capasEstiloBase.
     limpiarCapasIrrelevantes(map)
-    aplicarModoBase(map, 'satelital')
+    aplicarModoBase(map, 'satelitalHd')
     agregarCapasMarcadores(map)
     agregarCapasRuta(map)
     conectarTooltip(map)
@@ -240,13 +249,10 @@ export function MapaBase() {
     }
   }, [])
 
-  const alternarModoBase = useCallback(() => {
-    setModoBase((actual) => {
-      const nuevo: ModoBase = actual === 'vectorial' ? 'satelital' : 'vectorial'
-      const map = mapRef.current?.getMap()
-      if (map) aplicarModoBase(map, nuevo)
-      return nuevo
-    })
+  const cambiarModoBase = useCallback((nuevo: ModoBase) => {
+    const map = mapRef.current?.getMap()
+    if (map) aplicarModoBase(map, nuevo)
+    setModoBase(nuevo)
   }, [])
 
   return (
@@ -265,13 +271,31 @@ export function MapaBase() {
         <ScaleControl position="bottom-left" />
       </Map>
 
-      <button type="button" className="mapa-boton-base" onClick={alternarModoBase}>
-        {modoBase === 'vectorial' ? 'Ver satélite' : 'Ver mapa'}
-      </button>
+      <div className="mapa-base-segmentado">
+        {OPCIONES_BASE.map(({ modo, etiqueta }) => (
+          <button
+            key={modo}
+            type="button"
+            className={modoBase === modo ? 'mapa-base-activo' : ''}
+            title={
+              modo === 'satelitalHd'
+                ? 'Satélite HD (Esri/Maxar): máxima resolución disponible en el lago'
+                : modo === 'satelital'
+                  ? 'Satélite Sentinel-2 (~10 m/px): útil si el HD no carga'
+                  : 'Mapa vectorial oscuro, sin imagen'
+            }
+            onClick={() => cambiarModoBase(modo)}
+          >
+            {etiqueta}
+          </button>
+        ))}
+      </div>
 
-      {modoBase === 'satelital' && (
+      {modoBase !== 'vectorial' && (
         <div className="mapa-atribucion-satelite">
-          EOxCloudless — cloudless.eox.at — Copernicus Sentinel data 2016 &amp; 2017
+          {modoBase === 'satelitalHd'
+            ? 'Esri, Maxar, Earthstar Geographics'
+            : 'EOxCloudless — Copernicus Sentinel data'}
         </div>
       )}
 

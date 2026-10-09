@@ -29,6 +29,7 @@ export function resaltarLineas(map: MaplibreMap, codigo: string | null): void {
     useDatosStore.getState().indicadores,
     filtros.indicadoresFiltro,
     filtros.indicadorPeriodo,
+    { desde: filtros.indicadorDesde },
   )
   // OJO: cada línea (sea EF o MG) lleva AMBAS propiedades `ef` y `mg` del pozo
   // en su extremo (para que el pozo pueda resaltar sus dos conexiones a la

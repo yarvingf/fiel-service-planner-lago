@@ -36,28 +36,55 @@ export const FUENTE_SATELITE: RasterSourceSpecification = {
   maxzoom: 14,
 }
 
+/**
+ * Capa satelital HD: Esri World Imagery (imagery Maxar/aéreo, ~0.3-1 m/px en
+ * la costa del Lago de Maracaibo vs. los ~10 m/px de Sentinel-2). Endpoint
+ * público REST de ArcGIS Online — uso libre con atribución visible; volúmenes
+ * altos piden cuenta ArcGIS según sus ToS, pero para uso interno/regional es
+ * práctica estándar. maxzoom 19: encima de eso MapLibre remuestrea el tile.
+ */
+const SATELITE_HD_TILES_URL =
+  import.meta.env.VITE_SATELLITE_HD_TILES_URL ??
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+
+const SATELITE_HD_ATRIBUCION = 'Esri, Maxar, Earthstar Geographics'
+
+export const FUENTE_SATELITE_HD: RasterSourceSpecification = {
+  type: 'raster',
+  tiles: [SATELITE_HD_TILES_URL],
+  tileSize: 256,
+  attribution: SATELITE_HD_ATRIBUCION,
+  maxzoom: 19,
+}
+
 export const ID_FUENTE_SATELITE = 'satelite'
 export const ID_CAPA_SATELITE = 'satelite-capa'
+export const ID_FUENTE_SATELITE_HD = 'satelite-hd'
+export const ID_CAPA_SATELITE_HD = 'satelite-hd-capa'
+
+/** Modos de la capa base: vectorial oscuro, satélite Sentinel-2 o satélite HD (Esri). */
+export type ModoBaseMapa = 'vectorial' | 'satelital' | 'satelitalHd'
 
 /**
- * Agrega la fuente/capa satelital al estilo ya cargado (vectorial), oculta por
- * defecto. Se inserta debajo de la primera capa del estilo para que, cuando
- * se muestre, quede como fondo y las etiquetas/vías del vectorial no se vean
- * duplicadas encima (esas se ocultan aparte al activar el satélite).
+ * Agrega las fuentes/capas satelitales al estilo ya cargado (vectorial),
+ * ocultas por defecto. Se insertan debajo de la primera capa del estilo para
+ * que, cuando se muestren, queden como fondo y las etiquetas/vías del
+ * vectorial no se vean duplicadas encima (esas se ocultan aparte al activar
+ * cualquier modo satélite).
  */
 export function agregarFuenteSatelite(map: MaplibreMap): void {
-  if (map.getSource(ID_FUENTE_SATELITE)) return
-  map.addSource(ID_FUENTE_SATELITE, FUENTE_SATELITE)
   const primeraCapa = map.getStyle().layers?.[0]?.id
-  map.addLayer(
-    {
-      id: ID_CAPA_SATELITE,
-      type: 'raster',
-      source: ID_FUENTE_SATELITE,
-      layout: { visibility: 'none' },
-    },
-    primeraCapa,
-  )
+  for (const [fuente, capa, spec] of [
+    [ID_FUENTE_SATELITE, ID_CAPA_SATELITE, FUENTE_SATELITE],
+    [ID_FUENTE_SATELITE_HD, ID_CAPA_SATELITE_HD, FUENTE_SATELITE_HD],
+  ] as const) {
+    if (map.getSource(fuente)) continue
+    map.addSource(fuente, spec)
+    map.addLayer(
+      { id: capa, type: 'raster', source: fuente, layout: { visibility: 'none' } },
+      primeraCapa,
+    )
+  }
 }
 
 // IDs de TODAS las capas del estilo base (Liberty) capturadas antes de que
@@ -86,17 +113,26 @@ export function limpiarCapasIrrelevantes(map: MaplibreMap): void {
   }
 }
 
-export function aplicarModoBase(map: MaplibreMap, modo: 'vectorial' | 'satelital'): void {
+export function aplicarModoBase(map: MaplibreMap, modo: ModoBaseMapa): void {
   if (capasEstiloBase === null) {
-    capasEstiloBase = (map.getStyle().layers ?? []).map((l) => l.id).filter((id) => id !== ID_CAPA_SATELITE)
+    capasEstiloBase = (map.getStyle().layers ?? [])
+      .map((l) => l.id)
+      .filter((id) => id !== ID_CAPA_SATELITE && id !== ID_CAPA_SATELITE_HD)
   }
-  const visible = modo === 'satelital' ? 'visible' : 'none'
-  if (map.getLayer(ID_CAPA_SATELITE)) {
-    map.setLayoutProperty(ID_CAPA_SATELITE, 'visibility', visible)
+  // Un satélite visible a la vez; las capas del estilo vectorial se ocultan
+  // en cualquiera de los dos modos satelitales.
+  const esSatelite = modo !== 'vectorial'
+  for (const [capa, activoEn] of [
+    [ID_CAPA_SATELITE, 'satelital'],
+    [ID_CAPA_SATELITE_HD, 'satelitalHd'],
+  ] as const) {
+    if (map.getLayer(capa)) {
+      map.setLayoutProperty(capa, 'visibility', modo === activoEn ? 'visible' : 'none')
+    }
   }
   for (const id of capasEstiloBase) {
     if (map.getLayer(id)) {
-      map.setLayoutProperty(id, 'visibility', modo === 'satelital' ? 'none' : 'visible')
+      map.setLayoutProperty(id, 'visibility', esSatelite ? 'none' : 'visible')
     }
   }
 }

@@ -134,23 +134,37 @@ export function calcularIndicadores(visitas: readonly VisitaCampo[]): IndicadorP
 // --- Filtrado ---
 
 /** Periodo sobre el que se evalúa "el pozo tiene el indicador". */
-export type PeriodoIndicador = 'todos' | 'mes' | 'anio' | 'ultimos30'
+export type PeriodoIndicador = 'todos' | 'mes' | 'ultimos30' | 'ultimos3m' | 'anio' | 'desde'
 
 export const NOMBRES_PERIODO: Record<PeriodoIndicador, string> = {
   todos: 'Cualquier fecha',
   mes: 'Este mes',
-  anio: 'Este año',
   ultimos30: 'Últimos 30 días',
+  ultimos3m: 'Últimos 3 meses',
+  anio: 'Este año',
+  desde: 'Desde fecha…',
 }
 
-function desdeDelPeriodo(periodo: PeriodoIndicador, hoy: Date): number {
+/** Opciones del filtro por indicadores: `desde` solo aplica con periodo 'desde'. */
+export interface OpcionesIndicador {
+  /** YYYY-MM-DD — límite inferior manual (la cota superior siempre es hoy). */
+  desde?: string | null
+  hoy?: Date
+}
+
+function desdeDelPeriodo(periodo: PeriodoIndicador, hoy: Date, desde: string | null | undefined): number {
   switch (periodo) {
     case 'mes':
       return new Date(hoy.getFullYear(), hoy.getMonth(), 1).getTime()
-    case 'anio':
-      return new Date(hoy.getFullYear(), 0, 1).getTime()
     case 'ultimos30':
       return hoy.getTime() - 30 * ES_HOY_MS
+    case 'ultimos3m':
+      return new Date(hoy.getFullYear(), hoy.getMonth() - 3, hoy.getDate()).getTime()
+    case 'anio':
+      return new Date(hoy.getFullYear(), 0, 1).getTime()
+    case 'desde':
+      // Sin fecha elegida → sin cota (equivale a 'todos').
+      return desde ? new Date(`${desde}T00:00:00`).getTime() : -Infinity
     default:
       return -Infinity
   }
@@ -166,16 +180,54 @@ export function pozosConIndicador(
   indicadores: readonly IndicadorPozo[],
   tipos: readonly Indicador[],
   periodo: PeriodoIndicador,
-  hoy = new Date(),
+  opciones: OpcionesIndicador = {},
 ): Set<string> | null {
   if (tipos.length === 0) return null
-  const desde = desdeDelPeriodo(periodo, hoy)
+  const desde = desdeDelPeriodo(periodo, opciones.hoy ?? new Date(), opciones.desde)
   const elegidos = new Set<string>(tipos)
   const out = new Set<string>()
   for (const i of indicadores) {
     if (!elegidos.has(i.indicador)) continue
-    if (new Date(i.fecha).getTime() < desde) continue
+    if (new Date(`${i.fecha}T00:00:00Z`).getTime() < desde) continue
     out.add(i.pozoId)
   }
   return out
+}
+
+// --- Defaults del checklist de asignación ---
+
+/** Días hacia atrás que cuentan como "reciente" para el checklist (manómetro/nivel). */
+export const DIAS_INDICADOR_RECIENTE = 30
+
+export interface DefaultsChecklist {
+  validarAjuste: boolean
+  requiereManometro: boolean
+  requiereNivel: boolean
+}
+
+/**
+ * Checklist por defecto al asignar un pozo, derivado de sus indicadores
+ * recientes (≤30 días):
+ * - requiereManometro: Sí solo si NO tiene registro manométrico reciente.
+ * - requiereNivel: Sí solo si NO tiene nivel medido reciente.
+ * - validarAjuste: siempre No por defecto (se marca a mano).
+ */
+export function defaultsChecklistAsignacion(
+  indicadores: readonly IndicadorPozo[],
+  pozoId: string,
+  hoy = new Date(),
+): DefaultsChecklist {
+  const desde = hoy.getTime() - DIAS_INDICADOR_RECIENTE * ES_HOY_MS
+  const reciente = (ind: Indicador) =>
+    indicadores.some(
+      (i) =>
+        i.pozoId === pozoId &&
+        i.indicador === ind &&
+        new Date(`${i.fecha}T00:00:00Z`).getTime() >= desde,
+    )
+  return {
+    validarAjuste: false,
+    requiereManometro: !reciente('registro_manometrico'),
+    requiereNivel: !reciente('niveles'),
+  }
 }

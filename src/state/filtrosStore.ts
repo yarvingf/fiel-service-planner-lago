@@ -65,6 +65,11 @@ export interface Filtros {
   indicadorModo: 'incluir' | 'excluir'
   /** Ventana de tiempo sobre la que se evalúan los indicadores. */
   indicadorPeriodo: PeriodoIndicador
+  /**
+   * Fecha inicio (YYYY-MM-DD) cuando `indicadorPeriodo === 'desde'` —
+   * la cota superior del intervalo es siempre hoy. null = sin cota.
+   */
+  indicadorDesde: string | null
 }
 
 const TODOS_ESTATUS: EstatusCoa[] = ['Abierto', 'Cerrado', 'Indeterminado']
@@ -89,6 +94,7 @@ export const FILTROS_DEFAULT: Filtros = {
   indicadoresFiltro: [],
   indicadorModo: 'incluir',
   indicadorPeriodo: 'anio',
+  indicadorDesde: null,
 }
 
 interface EstadoFiltros {
