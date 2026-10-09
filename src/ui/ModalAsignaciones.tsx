@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { GridApi } from 'ag-grid-community'
 import { useAsignacionesStore, type AsignacionRec, type IdObjetivo } from '@/state/asignacionesStore'
 import { useDatosStore } from '@/state/datosStore'
+import { useAuthStore } from '@/state/authStore'
 import { construirDetalleObjetivos } from '@/domain/detalleAsignacion'
 import { formatearFecha } from '@/domain/fecha'
 import { exportarPlanExcel } from '@/data/exportarPlanExcel'
@@ -43,7 +44,10 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
     desasignar, desasignarCuadrilla, actualizarAsignaciones, actualizarLote,
     guardando, errorPlan,
   } = useAsignacionesStore()
-  const { pozos, instalaciones, seleccionar } = useDatosStore()
+  const { pozos, instalaciones, verDetalle } = useDatosStore()
+  // Rol 'consulta': el modal entero queda en solo lectura (todas las celdas,
+  // toggles, botones de desasignar y la multi-edición quedan apagados).
+  const puedeEditar = useAuthStore((s) => s.perfil?.rol === 'planificador')
 
   // Selección múltiple de filas (checkboxes), independiente de cuadrilla:
   // permite copiar Actividad/Nota a cualquier combinación de objetivos, no
@@ -222,7 +226,7 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
     const c = coordsDe.get(objetivoId)
     if (c) mapaInstancia.current?.flyTo({ center: [c.lon, c.lat], zoom: Math.max(mapaInstancia.current.getZoom(), 14) })
     const kind = objetivoId.startsWith('pozo|') ? 'pozo' : 'instalacion'
-    seleccionar({ kind, id: objetivoId.slice(objetivoId.indexOf('|') + 1) })
+    verDetalle({ kind, id: objetivoId.slice(objetivoId.indexOf('|') + 1) })
   }
 
   if (!abierto) return null
@@ -239,7 +243,7 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
 
         {errorPlan && <div className="ma-error">{errorPlan}</div>}
 
-        {marcados.size > 0 && (
+        {puedeEditar && marcados.size > 0 && (
           <div className="ma-barra-multi">
             <span className="ma-n-marcados">{marcados.size} seleccionados</span>
             <input
@@ -316,21 +320,23 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
                   </button>
                   <span className="ma-punto" style={{ background: cuadrilla.color }} />
                   {cuadrilla.nombre}
-                  <button
-                    type="button"
-                    className="ma-limpiar-grupo"
-                    title={`Desasignar sus ${items.length} objetivos del ${formatearFecha(fecha)}`}
-                    disabled={guardando}
-                    onClick={() => {
-                      if (window.confirm(`¿Desasignar los ${items.length} objetivos de "${cuadrilla.nombre}" del ${formatearFecha(fecha)}?`)) {
-                        const ids = new Set(items.map((i) => i.id))
-                        setMarcados((s) => new Set([...s].filter((id) => !ids.has(id))))
-                        void desasignarCuadrilla(cuadrilla.id)
-                      }
-                    }}
-                  >
-                    ⌫
-                  </button>
+                  {puedeEditar && (
+                    <button
+                      type="button"
+                      className="ma-limpiar-grupo"
+                      title={`Desasignar sus ${items.length} objetivos del ${formatearFecha(fecha)}`}
+                      disabled={guardando}
+                      onClick={() => {
+                        if (window.confirm(`¿Desasignar los ${items.length} objetivos de "${cuadrilla.nombre}" del ${formatearFecha(fecha)}?`)) {
+                          const ids = new Set(items.map((i) => i.id))
+                          setMarcados((s) => new Set([...s].filter((id) => !ids.has(id))))
+                          void desasignarCuadrilla(cuadrilla.id)
+                        }
+                      }}
+                    >
+                      ⌫
+                    </button>
+                  )}
                   <span className="ma-n">{items.length}</span>
                 </div>
                 {!plegado && (
@@ -338,7 +344,7 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
                     items={items}
                     detalleDe={detalleDe}
                     pendientes={pendientes}
-                    deshabilitado={guardando}
+                    deshabilitado={guardando || !puedeEditar}
                     onGridReady={(api) => gridApis.current.set(cuadrilla.id, api)}
                     onSeleccion={(ids) => alSeleccionGrupo(items, ids)}
                     onEditar={editar}
@@ -389,7 +395,7 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
                   items={huerfanos}
                   detalleDe={detalleDe}
                   pendientes={pendientes}
-                  deshabilitado={guardando}
+                  deshabilitado={guardando || !puedeEditar}
                   onGridReady={(api) => gridApis.current.set('__huerfanos__', api)}
                   onSeleccion={(ids) => alSeleccionGrupo(huerfanos, ids)}
                   onEditar={editar}

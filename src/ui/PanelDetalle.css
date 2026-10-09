@@ -1,43 +1,71 @@
-/* Inspector de objetivo: tarjeta fija arriba-izquierda, debajo de la
-   topbar de búsqueda. Siempre visible (vacía si no hay selección). */
+/* Inspector de objetivo: tarjeta cerrable — solo aparece con "Ver detalle"
+   del menú contextual. Arrastrable desde la barra superior; su posición se
+   guarda en localStorage. */
 .panel-detalle {
   position: absolute;
   /* Debajo de la topbar (búsqueda + herramientas ~56px) — columna izquierda. */
   top: 64px;
   left: 14px;
-  /* Tamaño fijo: la ficha no cambia aunque esté vacía — siempre ocupa el
-     mismo lugar y no desplaza ni tapa otros controles al aparecer datos. */
+  /* Tamaño fijo: la ficha no crece con el contenido ni desplaza controles. */
   /* Mismo ancho que la pill de búsqueda de la topbar (border-box para que
      padding y borde no la ensanchen por encima del input). */
   box-sizing: border-box;
   width: min(360px, 42vw);
   height: 50vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   /* La tabla de arenas es más ancha que la ficha: sin scroll horizontal
      visible — la tabla recorta celdas con ellipsis (ver .pd-tabla). */
   overflow-x: hidden;
   /* Ficha casi transparente (0.2): el mapa se lee a través; el blur del
      backdrop-filter mantiene el texto legible. */
   background: rgba(31, 33, 38, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--hud-border);
   border-radius: 10px;
   box-shadow: var(--hud-shadow-float);
-  padding: 12px 14px;
+  padding: 0;
   z-index: 10;
   font-size: 13px;
   color: var(--hud-text);
 }
 
+/* Barra de agarre fija arriba: mueve la tarjeta y aloja el botón de cierre.
+   El contenido va en .pd-cuerpo, que es quien realmente hace scroll. */
+.pd-grip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px 4px 14px;
+  border-bottom: 1px solid var(--hud-border);
+  cursor: grab;
+  user-select: none;
+  flex: none;
+}
+.pd-grip:active { cursor: grabbing; }
+.pd-grip-puntos {
+  color: var(--hud-muted);
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.pd-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 14px;
+}
+
 .pd-cerrar {
-  position: absolute;
-  top: 8px;
-  right: 10px;
   border: none;
   background: none;
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
   color: var(--hud-muted);
+  padding: 0 2px;
 }
 .pd-cerrar:hover { color: var(--hud-text); }
 

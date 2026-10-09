@@ -1,0 +1,205 @@
+/**
+ * Panel de rutas — tarjeta flotante a la derecha (misma familia visual del
+ * HUD: fondo translúcido 0.5 + blur + texto 0.75). Sin fondo modal: el mapa
+ * queda interactivo para ver el trazado mientras el panel está abierto.
+ */
+.pr-panel {
+  position: fixed;
+  top: 116px;
+  right: 14px;
+  width: 340px;
+  max-height: calc(100vh - 280px);
+  display: flex;
+  flex-direction: column;
+  background: var(--hud-bg, rgba(17, 24, 39, 0.5));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--hud-borde, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  color: var(--hud-text, rgba(232, 234, 237, 0.75));
+  font-size: 12px;
+  z-index: 40;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.pr-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--hud-borde, rgba(255, 255, 255, 0.1));
+}
+
+.pr-cerrar {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.7;
+  line-height: 1;
+}
+.pr-cerrar:hover { opacity: 1; }
+
+.pr-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--hud-borde, rgba(255, 255, 255, 0.08));
+}
+
+.pr-campo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  opacity: 0.9;
+}
+.pr-campo input {
+  width: 52px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: var(--hud-text, rgba(232, 234, 237, 0.75));
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.pr-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.pr-select {
+  flex: 1 1 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: var(--hud-text, rgba(232, 234, 237, 0.75));
+  padding: 5px 7px;
+  font-size: 12px;
+}
+.pr-select option { background: #1f2937; }
+
+.pr-acciones {
+  display: flex;
+  gap: 6px;
+  flex: 1 1 100%;
+}
+.pr-acciones button {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--hud-text, rgba(232, 234, 237, 0.75));
+  font-size: 12px;
+  cursor: pointer;
+}
+.pr-acciones button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
+.pr-acciones button:disabled { opacity: 0.45; cursor: default; }
+.pr-acciones .pr-trazar {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.55);
+}
+.pr-acciones .pr-trazar:hover:not(:disabled) { background: rgba(239, 68, 68, 0.4); }
+
+.pr-aviso {
+  margin: 8px 12px 0;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  font-size: 11px;
+}
+
+.pr-cuerpo {
+  overflow-y: auto;
+  padding: 8px 12px 12px;
+}
+
+.pr-grupo { margin-top: 10px; }
+.pr-grupo:first-child { margin-top: 2px; }
+
+.pr-grupo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.pr-punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.pr-total {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.pr-lista {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0 0 0 4px;
+}
+.pr-parada {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 0;
+  border-left: 2px solid rgba(239, 68, 68, 0.5);
+  padding-left: 8px;
+  margin-left: 4px;
+}
+.pr-orden {
+  min-width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  transform: translateY(1px);
+}
+.pr-codigo { font-weight: 600; }
+.pr-tramo {
+  margin-left: auto;
+  font-size: 10.5px;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+.pr-muelle {
+  opacity: 0.85;
+  border-left-color: rgba(251, 191, 36, 0.5);
+}
+
+.pr-perdidas {
+  margin-top: 4px;
+  font-size: 10.5px;
+  opacity: 0.6;
+  padding-left: 8px;
+}
+
+.pr-vacio {
+  padding: 14px 6px;
+  font-size: 11.5px;
+  opacity: 0.6;
+  text-align: center;
+}

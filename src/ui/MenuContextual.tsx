@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
+import { useAuthStore } from '@/state/authStore'
 import { calcularDerivadosPozo } from '@/domain/pozo'
 import { NOMBRES_TIPO_INSTALACION } from '@/domain/instalacion'
 import { COLORES_ESTATUS } from '@/map/capasMarcadores'
@@ -27,7 +28,9 @@ export function MenuContextual({ x, y, kind, id, onCerrar }: PosMenuContextual &
   const [elegirCuadrilla, setElegirCuadrilla] = useState(false)
   const [copiado, setCopiado] = useState(false)
 
-  const { pozos, instalaciones, seleccionar } = useDatosStore()
+  const { pozos, instalaciones, verDetalle } = useDatosStore()
+  // Rol 'consulta': el menú solo muestra acciones de lectura.
+  const puedeEditar = useAuthStore((s) => s.perfil?.rol === 'planificador')
   const {
     seleccion, cuadrillas, cuadrillaActiva, fecha, asignaciones,
     alternarObjetivo, setCuadrillaActiva, iniciarAsignacion,
@@ -99,7 +102,7 @@ export function MenuContextual({ x, y, kind, id, onCerrar }: PosMenuContextual &
         </div>
       )}
 
-      {elegirCuadrilla ? (
+      {elegirCuadrilla && puedeEditar ? (
         <div className="mc-cuadrillas">
           {cuadrillas.filter((c) => c.activa).map((c) => (
             <button key={c.id} type="button" onClick={() => asignarA(c.id)}>
@@ -111,7 +114,7 @@ export function MenuContextual({ x, y, kind, id, onCerrar }: PosMenuContextual &
         </div>
       ) : (
         <>
-          {activa ? (
+          {puedeEditar && (activa ? (
             <button
               type="button"
               className="mc-item"
@@ -125,7 +128,7 @@ export function MenuContextual({ x, y, kind, id, onCerrar }: PosMenuContextual &
             <button type="button" className="mc-item" onClick={() => setElegirCuadrilla(true)}>
               → Asignar a… <span className="mc-detalle">elegir cuadrilla</span>
             </button>
-          )}
+          ))}
 
           <button type="button" className="mc-item" onClick={() => { alternarObjetivo(objetivoId); onCerrar() }}>
             {enSeleccion ? '✓ Quitar de la selección' : '⊕ Añadir a la selección'}
@@ -133,7 +136,7 @@ export function MenuContextual({ x, y, kind, id, onCerrar }: PosMenuContextual &
         </>
       )}
 
-      <button type="button" className="mc-item" onClick={() => { seleccionar({ kind, id }); onCerrar() }}>
+      <button type="button" className="mc-item" onClick={() => { verDetalle({ kind, id }); onCerrar() }}>
         ⓘ Ver detalle
       </button>
 

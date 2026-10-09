@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Cuadrilla } from '@/domain/cuadrilla'
 import { useDatosStore } from './datosStore'
-import { usuarioActualId } from './authStore'
+import { usuarioActualId, esPlanificador } from './authStore'
 import {
   listarCuadrillas,
   crearCuadrilla,
@@ -218,6 +218,10 @@ interface EstadoAsignaciones {
   aplicarCopiaPlan: (items: ItemCopiaPlan[]) => Promise<boolean>
 }
 
+/** Mensaje cuando un usuario 'consulta' intenta una escritura: la RLS ya la
+ *  rechazaría, pero el guard da un error claro y sin viaje de red. */
+const MENSAJE_SOLO_LECTURA = 'Tu rol es de consulta: puedes ver el plan pero no modificarlo'
+
 export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
   cuadrillas: [],
   asignaciones: [],
@@ -272,6 +276,7 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
     }),
 
   agregarCuadrilla: async (nombre, colorElegido) => {
+    if (!esPlanificador()) return set({ errorPlan: MENSAJE_SOLO_LECTURA })
     const color = colorElegido ?? PALETA_CUADRILLAS[get().cuadrillas.length % PALETA_CUADRILLAS.length]
     set({ guardando: true, errorPlan: null })
     try {
@@ -298,6 +303,7 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
   },
 
   quitarCuadrilla: async (id) => {
+    if (!esPlanificador()) return set({ errorPlan: MENSAJE_SOLO_LECTURA })
     set({ guardando: true, errorPlan: null })
     try {
       // Borrado lógico: activa=false. Las asignaciones quedan intactas —
@@ -401,6 +407,10 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
   },
 
   asignar: async (cuadrillaId, objetivos, resoluciones) => {
+    if (!esPlanificador()) {
+      set({ errorPlan: MENSAJE_SOLO_LECTURA })
+      return false
+    }
     const s = get()
     const sel = new Set(objetivos)
     // Objetivos cuya asignación previa de ese día se conserva (omitir)
@@ -448,6 +458,10 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
   },
 
   desasignar: async (ids) => {
+    if (!esPlanificador()) {
+      set({ errorPlan: MENSAJE_SOLO_LECTURA })
+      return false
+    }
     const s = get()
     const propios = ids.filter((id) =>
       s.asignaciones.some((a) => a.fecha === s.fecha && a.objetivoId === id),
@@ -469,6 +483,10 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
   },
 
   desasignarCuadrilla: async (cuadrillaId) => {
+    if (!esPlanificador()) {
+      set({ errorPlan: MENSAJE_SOLO_LECTURA })
+      return false
+    }
     const s = get()
     if (!s.asignaciones.some((a) => a.fecha === s.fecha && a.cuadrillaId === cuadrillaId)) return true
     set({ guardando: true, errorPlan: null })
@@ -488,6 +506,10 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
   },
 
   actualizarAsignacion: async (id, campos) => {
+    if (!esPlanificador()) {
+      set({ errorPlan: MENSAJE_SOLO_LECTURA })
+      return false
+    }
     set({ guardando: true, errorPlan: null })
     try {
       await actualizarAsignacionDb(id, campos)
@@ -504,6 +526,10 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
 
   actualizarAsignaciones: async (ids, campos) => {
     if (ids.length === 0) return true
+    if (!esPlanificador()) {
+      set({ errorPlan: MENSAJE_SOLO_LECTURA })
+      return false
+    }
     set({ guardando: true, errorPlan: null })
     try {
       await actualizarAsignacionesDb(ids, campos)
@@ -521,6 +547,10 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
 
   actualizarLote: async (cambios) => {
     if (cambios.size === 0) return true
+    if (!esPlanificador()) {
+      set({ errorPlan: MENSAJE_SOLO_LECTURA })
+      return false
+    }
     // Las filas que recibieron el mismo cambio comparten un solo UPDATE ... IN.
     const grupos = agruparCambiosLote(cambios)
     set({ guardando: true, errorPlan: null })
@@ -547,6 +577,10 @@ export const useAsignacionesStore = create<EstadoAsignaciones>((set, get) => ({
 
   aplicarCopiaPlan: async (items) => {
     if (items.length === 0) return true
+    if (!esPlanificador()) {
+      set({ errorPlan: MENSAJE_SOLO_LECTURA })
+      return false
+    }
     set({ guardando: true, errorPlan: null })
     try {
       const escritas = await copiarAsignaciones(get().fecha, items, usuarioActualId() ?? '')

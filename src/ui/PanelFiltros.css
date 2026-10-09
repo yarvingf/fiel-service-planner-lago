@@ -1,28 +1,44 @@
-/* Capa de cierre del modal de filtros: transparente — solo atrapa el clic
-   fuera de la tarjeta sin oscurecer el mapa. */
+/* Contenedor del modal de filtros: cubre la ventana pero es transparente a
+   los clics (pointer-events: none) — el panel no cierra con clic fuera y el
+   mapa sigue respondiendo debajo; solo la × del header lo cierra. */
 .pf-fondo {
   position: fixed;
   inset: 0;
   z-index: 55;
+  pointer-events: none;
 }
 
-/* Modal de filtros: anclado bajo la topbar, a la izquierda. */
+/* Modal de filtros: centrado en pantalla, amplio — tres columnas internas
+   para ver todas las secciones de un vistazo sin hacer scroll. */
 .panel-filtros {
   position: absolute;
-  top: 60px;
-  left: 14px;
-  width: 256px;
-  max-height: calc(100% - 120px);
+  pointer-events: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(860px, 94vw);
+  max-height: 88vh;
   overflow-y: auto;
   background: var(--hud-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--hud-border);
-  border-radius: 10px;
-  box-shadow: var(--hud-shadow-float);
-  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  padding: 14px 18px;
   z-index: 11;
   font-size: 13px;
   color: var(--hud-text);
 }
+
+/* Las tres columnas del cuerpo: cada sección vive en su columna asignada
+   (Estatus/Método/Campo — Asignación/Límites — EF·MG/Instalaciones). */
+.pf-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 18px;
+}
+.pf-col { min-width: 0; }
 
 .pf-header {
   display: flex;
@@ -33,6 +49,8 @@
   margin-bottom: 4px;
 }
 .pf-header > span:first-child { margin-right: auto; }
+.pf-header-grip { cursor: grab; user-select: none; }
+.pf-header-grip:active { cursor: grabbing; }
 .pf-contador {
   font-size: 11px;
   font-weight: 600;
@@ -46,15 +64,15 @@
 .pf-seccion-titulo {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   width: 100%;
-  padding: 6px 0;
+  padding: 9px 0;
   border: none;
   background: transparent;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--hud-muted);
   cursor: pointer;
   text-align: left;
@@ -86,9 +104,9 @@
   border: 1px solid var(--hud-border);
   background: var(--hud-bg-soft);
   color: var(--hud-muted);
-  border-radius: 6px;
-  padding: 2px 8px;
-  font-size: 11px;
+  border-radius: 7px;
+  padding: 5px 11px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -164,12 +182,13 @@
 }
 
 .pf-limpiar {
-  width: 100%;
-  margin-top: 4px;
+  display: block;
+  width: auto;
+  margin: 10px auto 0;
   border: 1px solid var(--hud-border);
   background: var(--hud-bg-soft);
-  border-radius: 6px;
-  padding: 5px 0;
+  border-radius: 7px;
+  padding: 7px 22px;
   font-size: 12px;
   font-weight: 600;
   color: var(--hud-muted);

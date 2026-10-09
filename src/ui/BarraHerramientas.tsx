@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore, type IdObjetivo } from '@/state/asignacionesStore'
+import { useAuthStore } from '@/state/authStore'
 
 // Los modales solo se descargan al abrirlos por primera vez (chunks aparte).
 const ModalCoa = lazy(() => import('./ModalCoa').then((m) => ({ default: m.ModalCoa })))
@@ -38,11 +39,14 @@ function puntaje(q: string, codigo: string, extra: string): number {
 const objetivoIdDe = (r: Resultado): IdObjetivo => `${r.kind === 'pozo' ? 'pozo' : 'inst'}|${r.id}`
 
 export function BarraHerramientas() {
-  const { pozos, instalaciones, alertas, cargando, error, prepararSincronizacion, seleccionar } = useDatosStore()
+  const { pozos, instalaciones, alertas, cargando, error, prepararSincronizacion, verDetalle } = useDatosStore()
   const {
     cuadrillas, cuadrillaActiva, asignaciones, fecha, seleccion,
     alternarObjetivo, agregarASeleccion, iniciarAsignacion,
   } = useAsignacionesStore()
+  // Rol 'consulta': se ocultan las entradas que escriben en la base
+  // (estatus COA, import de Excel, asignación rápida desde resultados).
+  const puedeEditar = useAuthStore((s) => s.perfil?.rol === 'planificador')
   const [query, setQuery] = useState('')
   const [activo, setActivo] = useState(0)
   const [modalCoa, setModalCoa] = useState(false)
@@ -117,7 +121,7 @@ export function BarraHerramientas() {
     // Solo acercar, nunca alejar: con zoom fijo el vuelo "alejaba" si el
     // usuario ya estaba más cerca que 14 — se sentía como un salto errático.
     map?.flyTo({ center: [r.lon, r.lat], zoom: Math.max(map.getZoom(), 14.5), duration: 900 })
-    seleccionar({ kind: r.kind, id: r.id })
+    verDetalle({ kind: r.kind, id: r.id })
     setQuery('')
   }
 
@@ -203,7 +207,7 @@ export function BarraHerramientas() {
                   >
                     {enSeleccion ? '✓' : '+'}
                   </button>
-                  {cuadrillaActiva && (
+                  {puedeEditar && cuadrillaActiva && (
                     <button
                       type="button"
                       className="bh-res-acc bh-res-asignar"
@@ -240,14 +244,16 @@ export function BarraHerramientas() {
 
     {/* Segmento derecho de la consola: utilidades globales */}
     <div className="cons-seg cons-utilidades">
-      <button
-        type="button"
-        className="bh-boton"
-        title="Pegar mensaje COA (🟢/🔴) para actualizar estatus de pozos"
-        onClick={() => setModalCoa(true)}
-      >
-        🟢🔴 Estatus
-      </button>
+      {puedeEditar && (
+        <button
+          type="button"
+          className="bh-boton"
+          title="Pegar mensaje COA (🟢/🔴) para actualizar estatus de pozos"
+          onClick={() => setModalCoa(true)}
+        >
+          🟢🔴 Estatus
+        </button>
+      )}
 
       <button
         type="button"
@@ -258,14 +264,16 @@ export function BarraHerramientas() {
         📋 Lista
       </button>
 
-      <button
-        type="button"
-        className="bh-boton"
-        disabled={cargando}
-        onClick={() => inputArchivo.current?.click()}
-      >
-        {cargando ? 'Analizando…' : 'Importar Excel'}
-      </button>
+      {puedeEditar && (
+        <button
+          type="button"
+          className="bh-boton"
+          disabled={cargando}
+          onClick={() => inputArchivo.current?.click()}
+        >
+          {cargando ? 'Analizando…' : 'Importar Excel'}
+        </button>
+      )}
       <input
         ref={inputArchivo}
         type="file"

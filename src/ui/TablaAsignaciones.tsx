@@ -265,7 +265,7 @@ export function TablaAsignaciones({
         headerName: 'Actividad',
         colId: 'actividad',
         field: 'actividad',
-        editable: true,
+        editable: !deshabilitado,
         minWidth: 130,
         cellClass: clasesCelda('actividad'),
       },
@@ -273,7 +273,7 @@ export function TablaAsignaciones({
         headerName: 'Prior.',
         colId: 'prioridad',
         field: 'prioridad',
-        editable: true,
+        editable: !deshabilitado,
         width: 62,
         cellStyle: { textAlign: 'right' },
         cellClass: clasesCelda('prioridad'),
@@ -307,7 +307,7 @@ export function TablaAsignaciones({
         valueGetter: (p) => (p.data?.requiereNivel ? 1 : 0),
         cellClass: clasesCelda('requiereNivel'),
       },
-      { headerName: 'Nota', colId: 'nota', field: 'nota', editable: true, flex: 1, minWidth: 120, cellClass: clasesCelda('nota') },
+      { headerName: 'Nota', colId: 'nota', field: 'nota', editable: !deshabilitado, flex: 1, minWidth: 120, cellClass: clasesCelda('nota') },
       {
         colId: 'acciones',
         width: 60,
@@ -318,7 +318,7 @@ export function TablaAsignaciones({
         cellRenderer: CeldaAcciones,
       },
     ],
-    [clasesCelda],
+    [clasesCelda, deshabilitado],
   )
 
   const alCambiarCelda = (e: CellValueChangedEvent<FilaGrid>) => {

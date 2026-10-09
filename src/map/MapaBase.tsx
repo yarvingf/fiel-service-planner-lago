@@ -7,10 +7,11 @@ import { agregarFuenteSatelite, aplicarModoBase, limpiarCapasIrrelevantes, ESTIL
 import { agregarCapasMarcadores, actualizarDatosMarcadores, aplicarColorPor, ID_CAPA_POZOS, ID_CAPA_INSTALACIONES } from './capasMarcadores'
 import { conectarTooltip, conectarSeleccion } from './tooltip'
 import { aplicarFiltros } from './filtros'
-import { aplicarEstiloLineas, detenerEstiloLineas } from './estiloLineas'
+import { aplicarEstiloLineas, aplicarEstiloRuta, detenerEstiloLineas } from './estiloLineas'
 import { mapaInstancia } from './mapaInstancia'
 import { activarDibujo, desactivarDibujo } from './seleccion'
 import { sincronizarEstadosMapa, reiniciarEstadosMapa } from './asignacionesMapa'
+import { agregarCapasRuta } from './capasRuta'
 import { pozosAGeoJSON, instalacionesAGeoJSON, lineasAsociacionAGeoJSON } from '@/data/geojson'
 import { useDatosStore } from '@/state/datosStore'
 import { pozoPasaFiltros, useFiltrosStore } from '@/state/filtrosStore'
@@ -87,6 +88,7 @@ export function MapaBase() {
     limpiarCapasIrrelevantes(map)
     aplicarModoBase(map, 'satelital')
     agregarCapasMarcadores(map)
+    agregarCapasRuta(map)
     conectarTooltip(map)
     conectarSeleccion(map)
     mapaInstancia.current = map
@@ -124,6 +126,10 @@ export function MapaBase() {
     if (!mapaListo || !map) return
     if (filtros.mostrarLineas) aplicarEstiloLineas(map, filtros.estiloLineas)
     else detenerEstiloLineas()
+    // La ruta trazada sigue la misma técnica (gradiente/animado) pero no el
+    // interruptor de visibilidad de las líneas EF/MG: el usuario la dibuja a
+    // propósito con el botón Trazar.
+    aplicarEstiloRuta(map, filtros.estiloLineas)
     return () => detenerEstiloLineas()
   }, [mapaListo, filtros.mostrarLineas, filtros.estiloLineas])
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore, type IdObjetivo } from '@/state/asignacionesStore'
+import { useAuthStore } from '@/state/authStore'
 import { useFiltrosStore } from '@/state/filtrosStore'
 import { extraerCodigosPozos } from '@/domain/parserCoa'
 import { construirIndicePozos, resolverPozoPorCodigo } from '@/domain/resolverPozo'
@@ -34,6 +35,8 @@ export function ModalListaPozos({ onCerrar }: Props) {
   const { seleccion, agregarASeleccion, iniciarAsignacion, cuadrillaActiva, cuadrillas } =
     useAsignacionesStore()
   const setFiltros = useFiltrosStore((s) => s.setFiltros)
+  // Rol 'consulta': "Asignar a…" es escritura — se oculta.
+  const puedeEditar = useAuthStore((s) => s.perfil?.rol === 'planificador')
   const [texto, setTexto] = useState('')
   const [filas, setFilas] = useState<FilaLista[] | null>(null)
   const [okMsg, setOkMsg] = useState('')
@@ -184,7 +187,7 @@ export function ModalListaPozos({ onCerrar }: Props) {
               </div>
               <div className="mc-pie">
                 {okMsg && <span className="mc-ok">{okMsg}</span>}
-                {cuadrillaActiva && seleccionables.length > 0 && (
+                {puedeEditar && cuadrillaActiva && seleccionables.length > 0 && (
                   <button
                     type="button"
                     className="mc-boton"

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
+import { useAuthStore } from '@/state/authStore'
 import { formatearFecha } from '@/domain/fecha'
 import { PanelCuadrillas } from './PanelCuadrillas'
 import { ModalCopiarPlan } from './ModalCopiarPlan'
@@ -16,6 +17,8 @@ export function PanelAsignacion() {
 
   const [modalCuadrillas, setModalCuadrillas] = useState(false)
   const [modalCopiar, setModalCopiar] = useState(false)
+  // Rol 'consulta': ve todo el plan pero no toca los comandos de escritura.
+  const puedeEditar = useAuthStore((s) => s.perfil?.rol === 'planificador')
 
   const asignadasHoy = useMemo(
     () => new Set(asignaciones.filter((a) => a.fecha === fecha).map((a) => a.objetivoId)),
@@ -57,7 +60,8 @@ export function PanelAsignacion() {
           <button
             type="button"
             className="pa-boton pa-asignar"
-            disabled={guardando || !cuadrillaActiva || seleccion.length === 0}
+            disabled={!puedeEditar || guardando || !cuadrillaActiva || seleccion.length === 0}
+            title={puedeEditar ? undefined : 'Rol de consulta: solo lectura'}
             onClick={() => iniciarAsignacion()}
           >
             Asignar
@@ -65,7 +69,7 @@ export function PanelAsignacion() {
           <button
             type="button"
             className="pa-boton"
-            disabled={guardando || !seleccion.some((id) => asignadasHoy.has(id))}
+            disabled={!puedeEditar || guardando || !seleccion.some((id) => asignadasHoy.has(id))}
             onClick={() => {
               void desasignar(seleccion).then((ok) => {
                 if (ok) limpiarSeleccion()
@@ -74,15 +78,17 @@ export function PanelAsignacion() {
           >
             Desasignar
           </button>
-          <button
-            type="button"
-            className="pa-boton"
-            title="Traer el plan de otro día como plantilla (revisas antes de aplicar)"
-            disabled={guardando}
-            onClick={() => setModalCopiar(true)}
-          >
-            Copiar plan
-          </button>
+          {puedeEditar && (
+            <button
+              type="button"
+              className="pa-boton"
+              title="Traer el plan de otro día como plantilla (revisas antes de aplicar)"
+              disabled={guardando}
+              onClick={() => setModalCopiar(true)}
+            >
+              Copiar plan
+            </button>
+          )}
           <button type="button" className="pa-boton" disabled={seleccion.length === 0} onClick={() => setSeleccion([])}>
             Limpiar
           </button>

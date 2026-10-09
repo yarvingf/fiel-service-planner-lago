@@ -3,6 +3,10 @@ import {
   ID_CAPA_LINEAS,
   ID_CAPA_LINEAS_CABEZA,
 } from './capasMarcadores'
+import {
+  ID_CAPA_RUTA_LINEAS,
+  ID_CAPA_RUTA_CABEZA,
+} from './capasRuta'
 import type { Filtros } from '@/state/filtrosStore'
 
 /**
@@ -45,6 +49,16 @@ function gradienteCabeza(pos: number): ExpressionSpecification {
   ]
 }
 
+/**
+ * Gradiente del modo estático sobre las líneas de ruta: progreso 0 = muelle
+ * (casi transparente), 1 = última parada (rojo pleno). Las rutas son siempre
+ * rojas — a diferencia de EF/MG no hacen falta capas por tipo.
+ */
+const gradienteRuta: ExpressionSpecification = [
+  'interpolate', ['linear'], ['line-progress'],
+  0, 'rgba(239,68,68,0.08)', 1, 'rgba(239,68,68,0.95)',
+]
+
 let intervalo: ReturnType<typeof setInterval> | null = null
 
 function detenerAnimacion(): void {
@@ -61,12 +75,20 @@ function iniciarAnimacion(map: MaplibreMap): void {
   intervalo = setInterval(() => {
     if (!map.getLayer(ID_CAPA_LINEAS)) return
     paso = (paso + 1) % SECUENCIA_DASH.length
-    map.setPaintProperty(ID_CAPA_LINEAS, 'line-dasharray', SECUENCIA_DASH[paso])
+    const patron = SECUENCIA_DASH[paso]
+    map.setPaintProperty(ID_CAPA_LINEAS, 'line-dasharray', patron)
+    // El mismo disparador anima los guiones de la ruta — comparten la marcha.
+    if (map.getLayer(ID_CAPA_RUTA_LINEAS)) {
+      map.setPaintProperty(ID_CAPA_RUTA_LINEAS, 'line-dasharray', patron)
+    }
 
     posicionCabeza += CABEZA_PASO
     if (posicionCabeza > CABEZA_MAX) posicionCabeza = CABEZA_MIN
     if (map.getLayer(ID_CAPA_LINEAS_CABEZA)) {
       map.setPaintProperty(ID_CAPA_LINEAS_CABEZA, 'line-gradient', gradienteCabeza(posicionCabeza))
+    }
+    if (map.getLayer(ID_CAPA_RUTA_CABEZA)) {
+      map.setPaintProperty(ID_CAPA_RUTA_CABEZA, 'line-gradient', gradienteCabeza(posicionCabeza))
     }
   }, 60)
 }
@@ -89,4 +111,30 @@ export function aplicarEstiloLineas(map: MaplibreMap, estilo: Filtros['estiloLin
 /** Detiene el intervalo de animación (líneas ocultas, cambio de fecha, desmontaje). */
 export function detenerEstiloLineas(): void {
   detenerAnimacion()
+}
+
+/**
+ * La ruta comparte la técnica elegida en Filtros → Estilo de líneas, pero es
+ * independiente del interruptor "mostrar líneas de asociación": el usuario
+ * la traza a propósito, así que se estiliza aunque las EF/MG estén ocultas.
+ *
+ * - 'gradiente': line-gradient rojo horneado (muelle transparente → última
+ *   parada plena) y se apagan guiones y cabecita.
+ * - 'animado': quita el gradiente (null = vuelve el line-color rojo sólido),
+ *   enciende la cabecita y arranca el intervalo compartido de guiones.
+ */
+export function aplicarEstiloRuta(map: MaplibreMap, estilo: Filtros['estiloLineas']): void {
+  if (!map.getLayer(ID_CAPA_RUTA_LINEAS)) return
+  const cabeza = map.getLayer(ID_CAPA_RUTA_CABEZA)
+  if (estilo === 'gradiente') {
+    map.setPaintProperty(ID_CAPA_RUTA_LINEAS, 'line-dasharray', undefined)
+    map.setPaintProperty(ID_CAPA_RUTA_LINEAS, 'line-gradient', gradienteRuta)
+    if (cabeza) map.setLayoutProperty(ID_CAPA_RUTA_CABEZA, 'visibility', 'none')
+    // Si las EF/MG están ocultas y esta era la única animación viva, se apaga.
+    detenerAnimacion()
+  } else {
+    map.setPaintProperty(ID_CAPA_RUTA_LINEAS, 'line-gradient', undefined)
+    if (cabeza) map.setLayoutProperty(ID_CAPA_RUTA_CABEZA, 'visibility', 'visible')
+    iniciarAnimacion(map)
+  }
 }

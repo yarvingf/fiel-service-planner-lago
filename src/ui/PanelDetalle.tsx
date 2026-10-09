@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useDatosStore } from '@/state/datosStore'
+import { useArrastrable } from './useArrastrable'
 import { calcularDerivadosPozo, type PozoConCompletaciones } from '@/domain/pozo'
 import { NOMBRES_TIPO_INSTALACION, type Instalacion } from '@/domain/instalacion'
 import { ultimaVisitaPorPozo, type VisitaCampo } from '@/domain/visitaCampo'
@@ -188,19 +189,34 @@ function DetalleInstalacion({ inst }: { inst: Instalacion }) {
 }
 
 export function PanelDetalle() {
-  const { seleccionado, pozos, instalaciones, seleccionar } = useDatosStore()
+  const { seleccionado, detalleAbierto, pozos, instalaciones, cerrarDetalle } = useDatosStore()
+  // Arrastrable desde la barra superior; la posición persiste entre sesiones.
+  const { ref, pos, alArrastrar } = useArrastrable<HTMLElement>('fsp.panelDetalle.pos')
 
   const pozo = seleccionado?.kind === 'pozo' ? pozos.find((p) => p.id === seleccionado.id) : undefined
   const inst = seleccionado?.kind === 'instalacion' ? instalaciones.find((i) => i.id === seleccionado.id) : undefined
 
-  // La ficha queda siempre visible: sin selección es solo la tarjeta vacía.
+  // La ficha es cerrable: solo existe si se pidió el detalle (clic derecho →
+  // "Ver detalle"). El clic simple en el mapa solo marca el anillo de selección.
+  if (!detalleAbierto) return null
+
   return (
-    <aside className="panel-detalle">
-      {(pozo || inst) && (
-        <button type="button" className="pd-cerrar" onClick={() => seleccionar(null)} aria-label="Cerrar">×</button>
-      )}
-      {pozo && <DetallePozo pozo={pozo} />}
-      {inst && <DetalleInstalacion inst={inst} />}
+    <aside
+      ref={ref}
+      className="panel-detalle"
+      style={pos ? { left: pos.x, top: pos.y } : undefined}
+    >
+      <div className="pd-grip" onPointerDown={alArrastrar} title="Arrastrar para mover">
+        <span className="pd-grip-puntos">⠿</span>
+        <button type="button" className="pd-cerrar" onClick={cerrarDetalle} aria-label="Cerrar">×</button>
+      </div>
+      <div className="pd-cuerpo">
+        {pozo && <DetallePozo pozo={pozo} />}
+        {inst && <DetalleInstalacion inst={inst} />}
+        {!pozo && !inst && (
+          <span className="pd-vacio">Clic derecho en un pozo o instalación → «Ver detalle»</span>
+        )}
+      </div>
     </aside>
   )
 }

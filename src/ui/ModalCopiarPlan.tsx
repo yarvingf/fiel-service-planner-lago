@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
+import { useAuthStore } from '@/state/authStore'
 import {
   listarAsignaciones,
   ultimaFechaConPlan,
@@ -23,6 +24,8 @@ interface Props {
 export function ModalCopiarPlan({ onCerrar }: Props) {
   const { cuadrillas, asignaciones, fecha, guardando, errorPlan, aplicarCopiaPlan } =
     useAsignacionesStore()
+  // Rol 'consulta': puede revisar la plantilla pero no aplicarla.
+  const puedeEditar = useAuthStore((s) => s.perfil?.rol === 'planificador')
 
   const [fechaOrigen, setFechaOrigen] = useState('')
   const [origen, setOrigen] = useState<AsignacionRemota[] | null>(null)
@@ -194,7 +197,8 @@ export function ModalCopiarPlan({ onCerrar }: Props) {
           <button
             type="button"
             className="pa-boton pa-asignar"
-            disabled={guardando || incluidos.size === 0}
+            disabled={!puedeEditar || guardando || incluidos.size === 0}
+            title={puedeEditar ? undefined : 'Rol de consulta: solo lectura'}
             onClick={() => void aplicar()}
           >
             {guardando ? 'Copiando…' : `Aplicar ${incluidos.size} asignacion(es)`}

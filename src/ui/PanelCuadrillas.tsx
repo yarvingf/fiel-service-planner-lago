@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAsignacionesStore, PALETA_CUADRILLAS } from '@/state/asignacionesStore'
+import { useAuthStore } from '@/state/authStore'
 import { formatearFecha } from '@/domain/fecha'
 import type { Cuadrilla } from '@/domain/cuadrilla'
 import './PanelCuadrillas.css'
@@ -46,6 +47,9 @@ export function PanelCuadrillas({ abierto, onCerrar }: Props) {
     agregarCuadrilla, quitarCuadrilla, desasignarCuadrilla,
     setCuadrillaActiva, guardando, errorPlan,
   } = useAsignacionesStore()
+
+  // Rol 'consulta': ve el listado pero no crea ni archiva cuadrillas.
+  const puedeEditar = useAuthStore((s) => s.perfil?.rol === 'planificador')
 
   const [config, setConfig] = useState(false)
   const [campo, setCampo] = useState<Prefijo>('CT')
@@ -117,7 +121,7 @@ export function PanelCuadrillas({ abierto, onCerrar }: Props) {
         <span className="pc-celda-nombre">{c.nombre}</span>
         <span className="pc-celda-n">{asignadas || ''}</span>
         <span className="pc-celda-acciones">
-          {asignadas > 0 && (
+          {puedeEditar && asignadas > 0 && (
             <span
               className="pc-celda-x"
               title={`Desasignar sus ${asignadas} objetivos del ${formatearFecha(fecha)}`}
@@ -130,7 +134,7 @@ export function PanelCuadrillas({ abierto, onCerrar }: Props) {
               ⌫
             </span>
           )}
-          <span
+          {puedeEditar && <span
             className="pc-celda-x"
             title="Archivar cuadrilla (su historial se conserva)"
             onClick={(e) => {
@@ -140,7 +144,7 @@ export function PanelCuadrillas({ abierto, onCerrar }: Props) {
             }}
           >
             ×
-          </span>
+          </span>}
         </span>
       </button>
     )
@@ -166,9 +170,11 @@ export function PanelCuadrillas({ abierto, onCerrar }: Props) {
 
         {!config ? (
           <>
-            <button type="button" className="pc-config" onClick={() => setConfig(true)}>
-              ⚙ Configuración
-            </button>
+            {puedeEditar && (
+              <button type="button" className="pc-config" onClick={() => setConfig(true)}>
+                ⚙ Configuración
+              </button>
+            )}
 
             {grupo('Ceuta Treco', grupos.CT)}
             <div className="pc-divisor" />

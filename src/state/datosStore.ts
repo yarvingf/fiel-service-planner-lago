@@ -42,6 +42,12 @@ interface EstadoDatos {
   /** Incrementa en cada carga/sync; el mapa lo usa para saber que debe re-sincronizar. */
   versionDatos: number
   seleccionado: Seleccion | null
+  /**
+   * La ficha de detalle es cerrable y solo se abre a demanda ("Ver detalle"
+   * del menú contextual) — el clic simple sobre un marcador selecciona (anillo)
+   * sin abrir la ficha, para no tapar el mapa.
+   */
+  detalleAbierto: boolean
   /** Diff pendiente de confirmación (preview) — no null mientras el modal está abierto. */
   sincPendiente: SincronizacionPendiente | null
   sincronizando: boolean
@@ -60,6 +66,10 @@ interface EstadoDatos {
    */
   aplicarEstatusCoa: (cambios: { pozoId: string; estatus: 'Abierto' | 'Cerrado' }[]) => Promise<boolean>
   seleccionar: (s: Seleccion | null) => void
+  /** Selecciona el objetivo Y abre la ficha de detalle. */
+  verDetalle: (s: Seleccion) => void
+  /** Cierra la ficha y suelta la selección (el × del panel). */
+  cerrarDetalle: () => void
 }
 
 export const useDatosStore = create<EstadoDatos>((set, get) => ({
@@ -71,6 +81,7 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
   error: null,
   versionDatos: 0,
   seleccionado: null,
+  detalleAbierto: false,
   sincPendiente: null,
   sincronizando: false,
 
@@ -196,6 +207,8 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
   },
 
   seleccionar: (s) => set({ seleccionado: s }),
+  verDetalle: (s) => set({ seleccionado: s, detalleAbierto: true }),
+  cerrarDetalle: () => set({ detalleAbierto: false, seleccionado: null }),
 }))
 
 /**

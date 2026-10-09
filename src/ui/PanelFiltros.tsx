@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   useFiltrosStore,
   pozoPasaFiltros,
@@ -14,6 +14,7 @@ import { formatearFecha } from '@/domain/fecha'
 import { TIPOS_INSTALACION_VISIBLES, NOMBRES_TIPO_INSTALACION } from '@/domain/instalacion'
 import { COLORES_ESTATUS } from '@/map/capasMarcadores'
 import { FiltroMultiSelect } from './FiltroMultiSelect'
+import { useArrastrable } from './useArrastrable'
 import './PanelFiltros.css'
 
 function Chip({ activo, color, onClick, children }: { activo: boolean; color?: string; onClick: () => void; children: React.ReactNode }) {
@@ -30,24 +31,22 @@ function Chip({ activo, color, onClick, children }: { activo: boolean; color?: s
 }
 
 /**
- * Sección colapsable del panel (colapso dentro del colapso general). El
- * `resumen` muestra el estado actual sin abrirla: "2/3", "Todos", etc.
+ * Sección del modal de filtros — siempre expandida (el modal tiene espacio
+ * de sobra en columnas; el colapso solo estorbaba). El `resumen` muestra el
+ * estado actual junto al título: "2/3", "Todos", etc.
  */
-function Seccion({ titulo, resumen, abiertoInicial = false, children }: {
+function Seccion({ titulo, resumen, children }: {
   titulo: string
   resumen?: string
-  abiertoInicial?: boolean
   children: React.ReactNode
 }) {
-  const [abierto, setAbierto] = useState(abiertoInicial)
   return (
     <div className="pf-seccion">
-      <button type="button" className="pf-seccion-titulo" onClick={() => setAbierto((v) => !v)}>
-        <span className="pf-flecha">{abierto ? '▾' : '▸'}</span>
+      <div className="pf-seccion-titulo">
         {titulo}
         {resumen && <span className="pf-resumen">{resumen}</span>}
-      </button>
-      {abierto && <div className="pf-seccion-cuerpo">{children}</div>}
+      </div>
+      <div className="pf-seccion-cuerpo">{children}</div>
     </div>
   )
 }
@@ -66,6 +65,8 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
   const limpiarSeleccion = useAsignacionesStore((s) => s.limpiarSeleccion)
   const asignaciones = useAsignacionesStore((s) => s.asignaciones)
   const fechaPlan = useAsignacionesStore((s) => s.fecha)
+  // Arrastrable desde el header; la posición persiste entre sesiones.
+  const { ref, pos, alArrastrar } = useArrastrable<HTMLElement>('fsp.panelFiltros.pos')
 
   const instPorId = useMemo(() => new Map(instalaciones.map((i) => [i.id, i])), [instalaciones])
 
@@ -128,9 +129,13 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
   if (!abierto) return null
 
   return (
-    <div className="pf-fondo" onClick={onCerrar}>
-    <aside className="panel-filtros" onClick={(e) => e.stopPropagation()}>
-      <div className="pf-header">
+    <div className="pf-fondo">
+    <aside
+      ref={ref}
+      className="panel-filtros"
+      style={pos ? { left: pos.x, top: pos.y, transform: 'none' } : undefined}
+    >
+      <div className="pf-header pf-header-grip" onPointerDown={alArrastrar} title="Arrastrar para mover">
         <span>Filtros</span>
         <span className="pf-contador">{visibles} / {total} pozos</span>
         <button type="button" className="pf-colapso" onClick={onCerrar} aria-label="Cerrar">×</button>
@@ -153,11 +158,11 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
         </button>
       )}
 
-      <>
+      <div className="pf-grid">
+      <div className="pf-col">
       <Seccion
         titulo="Estatus"
         resumen={`${filtros.estatus.length}/${OPCIONES_ESTATUS.length}`}
-        abiertoInicial
       >
         <div className="pf-chips">
           {OPCIONES_ESTATUS.map((e) => (
@@ -194,6 +199,9 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
         </div>
       </Seccion>
 
+      </div>
+
+      <div className="pf-col">
       <Seccion
         titulo={`Asignación (${formatearFecha(fechaPlan)})`}
         resumen={{ todos: 'Todos', asignado: 'Asignado', noAsignado: 'No asignado' }[filtros.asignacionFiltro]}
@@ -251,6 +259,9 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
         </div>
       </Seccion>
 
+      </div>
+
+      <div className="pf-col">
       <Seccion
         titulo="EF / MG"
         resumen={`EF ${resumenMulti(filtros.efFiltro, efCodigos.length)} · MG ${resumenMulti(filtros.mgFiltro, mgCodigos.length)}`}
@@ -274,7 +285,6 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
       <Seccion
         titulo="Instalaciones"
         resumen={`${resumenMulti(filtros.tiposInst, tiposPresentes.length)} · líneas ${filtros.mostrarLineas ? 'on' : 'off'}`}
-        abiertoInicial
       >
         <FiltroMultiSelect
           etiqueta="Instal."
@@ -323,11 +333,12 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
           Solo inst. de pozos visibles
         </label>
       </Seccion>
+      </div>
+      </div>
 
       {hayCambios && (
         <button type="button" className="pf-limpiar" onClick={limpiar}>Limpiar filtros</button>
       )}
-      </>
     </aside>
     </div>
   )
