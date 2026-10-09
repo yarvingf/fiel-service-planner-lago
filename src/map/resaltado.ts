@@ -3,6 +3,8 @@ import { ID_CAPA_LINEAS_HALO, ID_CAPA_POZOS_HALO, FILTRO_OCULTO } from './capasM
 import { expresionPozos, expresionLineas } from './filtros'
 import { useFiltrosStore } from '@/state/filtrosStore'
 import { idsAsignadosActuales } from '@/state/asignacionesStore'
+import { useDatosStore } from '@/state/datosStore'
+import { pozosConIndicador } from '@/domain/indicadores'
 
 /**
  * Resalta el grupo (pozo + su EF/MG) conectado a un código, con una sombra
@@ -23,6 +25,11 @@ export function resaltarLineas(map: MaplibreMap, codigo: string | null): void {
   }
   const filtros = useFiltrosStore.getState().filtros
   const idsAsignados = filtros.asignacionFiltro === 'todos' ? null : idsAsignadosActuales()
+  const idsIndicador = pozosConIndicador(
+    useDatosStore.getState().indicadores,
+    filtros.indicadoresFiltro,
+    filtros.indicadorPeriodo,
+  )
   // OJO: cada línea (sea EF o MG) lleva AMBAS propiedades `ef` y `mg` del pozo
   // en su extremo (para que el pozo pueda resaltar sus dos conexiones a la
   // vez). Comparar `ef`/`mg` sin cruzarlo con `tipoLinea` hacía que, al pasar
@@ -40,6 +47,6 @@ export function resaltarLineas(map: MaplibreMap, codigo: string | null): void {
     ['==', ['get', 'ef'], codigo],
     ['==', ['get', 'mg'], codigo],
   ]
-  map.setFilter(ID_CAPA_LINEAS_HALO, ['all', esLineaDelGrupo, expresionLineas(filtros, idsAsignados)] as FilterSpecification)
-  map.setFilter(ID_CAPA_POZOS_HALO, ['all', esPozoDelGrupo, expresionPozos(filtros, idsAsignados)] as FilterSpecification)
+  map.setFilter(ID_CAPA_LINEAS_HALO, ['all', esLineaDelGrupo, expresionLineas(filtros, idsAsignados, idsIndicador)] as FilterSpecification)
+  map.setFilter(ID_CAPA_POZOS_HALO, ['all', esPozoDelGrupo, expresionPozos(filtros, idsAsignados, idsIndicador)] as FilterSpecification)
 }

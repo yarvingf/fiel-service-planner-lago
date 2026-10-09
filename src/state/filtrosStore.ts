@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { calcularDerivadosPozo, type EstatusCoa, type Metodo, type PozoConCompletaciones } from '@/domain/pozo'
 import type { Instalacion } from '@/domain/instalacion'
 import type { Campo } from '@/domain/codigos'
+import type { Indicador, PeriodoIndicador } from '@/domain/indicadores'
 
 export interface Filtros {
   /** Estatus incluidos; vacío = ninguno visible. */
@@ -50,6 +51,20 @@ export interface Filtros {
    * no-null = solo esos pozos pasan el filtro. null = off.
    */
   soloIds: string[] | null
+  /**
+   * Eventos del historial GL/BES (tabla pozo_indicadores): el pozo pasa si
+   * tiene ALGUNO de estos indicadores dentro de `indicadorPeriodo`.
+   * [] = sin filtro de indicadores.
+   */
+  indicadoresFiltro: Indicador[]
+  /**
+   * 'incluir' = solo pozos CON algún indicador elegido en el periodo;
+   * 'excluir' = todos MENOS los que lo tienen (útil para "pozos que aún
+   * no tienen registro manométrico este año", etc.).
+   */
+  indicadorModo: 'incluir' | 'excluir'
+  /** Ventana de tiempo sobre la que se evalúan los indicadores. */
+  indicadorPeriodo: PeriodoIndicador
 }
 
 const TODOS_ESTATUS: EstatusCoa[] = ['Abierto', 'Cerrado', 'Indeterminado']
@@ -71,12 +86,15 @@ export const FILTROS_DEFAULT: Filtros = {
   soloInstAsociadas: false,
   sinVisitaDias: 0,
   soloIds: null,
+  indicadoresFiltro: [],
+  indicadorModo: 'incluir',
+  indicadorPeriodo: 'anio',
 }
 
 interface EstadoFiltros {
   filtros: Filtros
   setFiltros: (parcial: Partial<Filtros>) => void
-  alternarEn: <K extends 'estatus' | 'metodos' | 'campos'>(clave: K, valor: Filtros[K][number]) => void
+  alternarEn: <K extends 'estatus' | 'metodos' | 'campos' | 'indicadoresFiltro'>(clave: K, valor: Filtros[K][number]) => void
   limpiar: () => void
 }
 
@@ -104,6 +122,7 @@ export function pozoPasaFiltros(
   instPorId: ReadonlyMap<string, Instalacion>,
   idsAsignados: ReadonlySet<string>,
   diasSinVisita?: ReadonlyMap<string, number>,
+  idsIndicador?: ReadonlySet<string> | null,
 ): boolean {
   if (p.reemplazado || !p.activo || p.lat === null) return false
   const d = calcularDerivadosPozo(p.completaciones)
@@ -127,6 +146,13 @@ export function pozoPasaFiltros(
   if (f.sinVisitaDias > 0) {
     const dias = diasSinVisita?.get(p.id)
     if (dias !== undefined && dias < f.sinVisitaDias) return false
+  }
+  // Indicadores del historial (pozo_indicadores). Incluir: el pozo debe
+  // estar en el set (set ausente = sin dato → nada pasa). Excluir: los del
+  // set quedan fuera (set ausente = nada que excluir → todos pasan).
+  if (f.indicadoresFiltro.length > 0) {
+    const tiene = idsIndicador?.has(p.id) ?? false
+    if (f.indicadorModo === 'excluir' ? tiene : !tiene) return false
   }
   return true
 }

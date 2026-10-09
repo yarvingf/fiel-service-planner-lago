@@ -3,10 +3,11 @@ import type { PozoConCompletaciones } from '@/domain/pozo'
 import type { Instalacion } from '@/domain/instalacion'
 import type { AlertaImport } from '@/domain/alertasImport'
 import { ultimaVisitaPorPozo, type VisitaCampo } from '@/domain/visitaCampo'
+import { calcularIndicadores, type IndicadorPozo } from '@/domain/indicadores'
 import { importarExcel } from '@/data/importadorExcel'
 import { importarCsvPozos } from '@/data/importadorCsv'
 import { calcularDiff, type DiffUniverso } from '@/data/sincronizarUniverso'
-import { obtenerUniverso, aplicarDiffUniverso, actualizarCoaCompletaciones } from '@/data/persistencia'
+import { obtenerUniverso, aplicarDiffUniverso, actualizarCoaCompletaciones, listarIndicadores } from '@/data/persistencia'
 import { supabase } from '@/data/supabaseClient'
 
 export interface Seleccion {
@@ -24,6 +25,8 @@ export interface SincronizacionPendiente {
   pozos: PozoConCompletaciones[]
   instalaciones: Instalacion[]
   visitas: VisitaCampo[]
+  /** Indicadores derivados de `visitas` — se persisten juntos al confirmar. */
+  indicadores: IndicadorPozo[]
 }
 
 interface EstadoDatos {
@@ -36,6 +39,12 @@ interface EstadoDatos {
    * que `prepararSincronizacion` pide aparte a la base.
    */
   visitas: VisitaCampo[]
+  /**
+   * Proyección reducida de `pozo_indicadores` (pozo|fecha|indicador|valor) —
+   * es lo que alimenta el filtro de eventos del historial sin escanear
+   * decenas de miles de visitas. Se regenera en cada import.
+   */
+  indicadores: IndicadorPozo[]
   alertas: AlertaImport[]
   cargando: boolean
   error: string | null
@@ -76,6 +85,7 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
   pozos: [],
   instalaciones: [],
   visitas: [],
+  indicadores: [],
   alertas: [],
   cargando: false,
   error: null,
@@ -90,7 +100,10 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
     set({ cargando: true, error: null })
     try {
       const { pozos, instalaciones, visitas } = await obtenerUniverso()
-      set((s) => ({ pozos, instalaciones, visitas, cargando: false, versionDatos: s.versionDatos + 1 }))
+      // Tabla nueva (migración 0012): si aún no está aplicada el filtro por
+      // indicadores queda vacío, pero el resto de la app no debe caer.
+      const indicadores = await listarIndicadores().catch(() => [] as IndicadorPozo[])
+      set((s) => ({ pozos, instalaciones, visitas, indicadores, cargando: false, versionDatos: s.versionDatos + 1 }))
     } catch (e) {
       set({ cargando: false, error: e instanceof Error ? e.message : String(e) })
     }
@@ -111,7 +124,7 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
       const actual = supabase
         ? await obtenerUniverso({ visitasCompletas: true })
         : { pozos: get().pozos, instalaciones: get().instalaciones, visitas: get().visitas }
-      let pozos: PozoConCompletaciones[], instalaciones: Instalacion[], visitas: VisitaCampo[], alertas: AlertaImport[]
+      let pozos: PozoConCompletaciones[], instalaciones: Instalacion[], visitas: VisitaCampo[], alertas: AlertaImport[], indicadores: IndicadorPozo[]
       if (esCsv) {
         const r = importarCsvPozos(await file.text(), get().instalaciones)
         pozos = r.pozos
@@ -121,17 +134,21 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
         // el set actual tal cual para que el diff reporte 0 en vez de
         // actualizaciones fantasma (el store solo guarda la última por pozo).
         visitas = actual.visitas
+        // Los indicadores derivan de visitas: se recomputan igual para que el
+        // rebuild de la tabla quede consistente con lo que se confirma.
+        indicadores = calcularIndicadores(visitas)
       } else {
         const r = await importarExcel(await file.arrayBuffer())
         pozos = r.pozos
         instalaciones = r.instalaciones
         visitas = r.visitas
         alertas = r.alertas
+        indicadores = r.indicadores
       }
       const diff = calcularDiff({ pozos, instalaciones, visitas }, actual)
       set({
         cargando: false,
-        sincPendiente: { diff, archivo: file.name, nAlertas: alertas.length, alertas, pozos, instalaciones, visitas },
+        sincPendiente: { diff, archivo: file.name, nAlertas: alertas.length, alertas, pozos, instalaciones, visitas, indicadores },
       })
     } catch (e) {
       set({ cargando: false, error: e instanceof Error ? e.message : String(e) })
@@ -157,6 +174,7 @@ export const useDatosStore = create<EstadoDatos>((set, get) => ({
         // El store conserva solo la última visita por pozo — el historial
         // completo ya quedó persistido y no hace falta en memoria.
         visitas: [...ultimaVisitaPorPozo(pend.visitas).values()],
+        indicadores: pend.indicadores,
         alertas: pend.alertas,
         sincPendiente: null,
         sincronizando: false,
@@ -221,10 +239,10 @@ export async function cargarExcelDev(): Promise<void> {
   try {
     const res = await fetch('/Excel%20Data.xlsx')
     if (!res.ok) return
-    const { pozos, instalaciones, visitas, alertas } = await importarExcel(await res.arrayBuffer())
+    const { pozos, instalaciones, visitas, indicadores, alertas } = await importarExcel(await res.arrayBuffer())
     // En dev sin Supabase se conserva el historial completo en memoria: es la
     // única fuente para el "historial bajo demanda" del detalle del pozo.
-    useDatosStore.setState((s) => ({ pozos, instalaciones, visitas, alertas, versionDatos: s.versionDatos + 1 }))
+    useDatosStore.setState((s) => ({ pozos, instalaciones, visitas, indicadores, alertas, versionDatos: s.versionDatos + 1 }))
   } catch {
     // Sin archivo local: el mapa arranca vacío y los datos vendrán de Supabase.
   }

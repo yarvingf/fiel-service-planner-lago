@@ -16,6 +16,7 @@ import { pozosAGeoJSON, instalacionesAGeoJSON, lineasAsociacionAGeoJSON } from '
 import { useDatosStore } from '@/state/datosStore'
 import { pozoPasaFiltros, useFiltrosStore } from '@/state/filtrosStore'
 import { diasSinVisitaPorPozo } from '@/domain/visitaCampo'
+import { pozosConIndicador } from '@/domain/indicadores'
 import { useAsignacionesStore, type ModoSeleccion } from '@/state/asignacionesStore'
 import { MenuContextual, type PosMenuContextual } from '@/ui/MenuContextual'
 import './MapaBase.css'
@@ -42,6 +43,7 @@ export function MapaBase() {
   const pozos = useDatosStore((s) => s.pozos)
   const instalaciones = useDatosStore((s) => s.instalaciones)
   const visitas = useDatosStore((s) => s.visitas)
+  const indicadores = useDatosStore((s) => s.indicadores)
   const seleccionado = useDatosStore((s) => s.seleccionado)
   const filtros = useFiltrosStore((s) => s.filtros)
   const { modoSeleccion, asignaciones, fecha, cuadrillas, seleccion, colorPor } = useAsignacionesStore()
@@ -60,6 +62,14 @@ export function MapaBase() {
   // aparecen en el mapa: pozoPasaFiltros los cuenta como "nunca visitados".
   const diasSinVisita = useMemo(() => diasSinVisitaPorPozo(visitas), [visitas])
 
+  // Ids de pozos que tienen alguno de los indicadores elegidos dentro del
+  // periodo — se calcula JS-side sobre la tabla reducida pozo_indicadores
+  // (~miles de filas), no sobre el historial completo.
+  const idsIndicador = useMemo(
+    () => pozosConIndicador(indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo),
+    [indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo],
+  )
+
   // Ids de instalaciones referenciadas (efId/mgId) por los pozos que pasan los
   // filtros actuales — alimenta "solo instalaciones asociadas". Las
   // expresiones de MapLibre no pueden hacer join entre fuentes, así que el
@@ -71,12 +81,12 @@ export function MapaBase() {
     const instPorId = new globalThis.Map(instalaciones.map((i) => [i.id, i] as const))
     const ids = new Set<string>()
     for (const p of pozos) {
-      if (!pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy, diasSinVisita)) continue
+      if (!pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy, diasSinVisita, idsIndicador)) continue
       if (p.efId) ids.add(p.efId)
       if (p.mgId) ids.add(p.mgId)
     }
     return ids
-  }, [filtros, pozos, instalaciones, idsAsignadosHoy, diasSinVisita])
+  }, [filtros, pozos, instalaciones, idsAsignadosHoy, diasSinVisita, idsIndicador])
 
   const alCargar = useCallback(() => {
     const map = mapRef.current?.getMap()
@@ -115,8 +125,8 @@ export function MapaBase() {
   useEffect(() => {
     const map = mapRef.current?.getMap()
     if (!mapaListo || !map) return
-    aplicarFiltros(map, filtros, idsAsignadosHoy, idsInstAsociadas)
-  }, [mapaListo, filtros, idsAsignadosHoy, idsInstAsociadas])
+    aplicarFiltros(map, filtros, idsAsignadosHoy, idsInstAsociadas, idsIndicador)
+  }, [mapaListo, filtros, idsAsignadosHoy, idsInstAsociadas, idsIndicador])
 
   // Técnica visual de la línea de asociación (gradiente vs. animado) — efecto
   // aparte del de filtros para no reiniciar la animación en cada cambio de

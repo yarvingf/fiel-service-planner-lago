@@ -194,6 +194,54 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      pozo_indicadores: {
+        Row: {
+          id: string
+          pozo_id: string
+          pozo_codigo: string
+          fecha: string
+          indicador: string
+          valor: number | null
+          visita_id: string | null
+          actualizado_en: string
+        }
+        Insert: {
+          id: string
+          pozo_id: string
+          pozo_codigo?: string
+          fecha: string
+          indicador: string
+          valor?: number | null
+          visita_id?: string | null
+          actualizado_en?: string
+        }
+        Update: {
+          id?: string
+          pozo_id?: string
+          pozo_codigo?: string
+          fecha?: string
+          indicador?: string
+          valor?: number | null
+          visita_id?: string | null
+          actualizado_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pozo_indicadores_pozo_id_fkey'
+            columns: ['pozo_id']
+            isOneToOne: false
+            referencedRelation: 'pozos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pozo_indicadores_visita_id_fkey'
+            columns: ['visita_id']
+            isOneToOne: false
+            referencedRelation: 'visitas_campo'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       visitas_campo: {
         Row: {
           id: string

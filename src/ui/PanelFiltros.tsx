@@ -10,6 +10,13 @@ import {
 import { useDatosStore } from '@/state/datosStore'
 import { useAsignacionesStore } from '@/state/asignacionesStore'
 import { diasSinVisitaPorPozo } from '@/domain/visitaCampo'
+import {
+  NOMBRES_INDICADOR,
+  NOMBRES_PERIODO,
+  pozosConIndicador,
+  type Indicador,
+  type PeriodoIndicador,
+} from '@/domain/indicadores'
 import { formatearFecha } from '@/domain/fecha'
 import { TIPOS_INSTALACION_VISIBLES, NOMBRES_TIPO_INSTALACION } from '@/domain/instalacion'
 import { COLORES_ESTATUS } from '@/map/capasMarcadores'
@@ -60,7 +67,7 @@ function resumenMulti(seleccion: string[] | null, total: number): string {
 
 export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar: () => void }) {
   const { filtros, setFiltros, alternarEn, limpiar } = useFiltrosStore()
-  const { pozos, instalaciones, visitas } = useDatosStore()
+  const { pozos, instalaciones, visitas, indicadores } = useDatosStore()
   const nSeleccion = useAsignacionesStore((s) => s.seleccion.length)
   const limpiarSeleccion = useAsignacionesStore((s) => s.limpiarSeleccion)
   const asignaciones = useAsignacionesStore((s) => s.asignaciones)
@@ -82,15 +89,22 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
   // del mapa; aquí alimenta el predicado JS para el conteo "visibles".
   const diasSinVisita = useMemo(() => diasSinVisitaPorPozo(visitas), [visitas])
 
+  // Pozos con algún indicador elegido dentro del periodo — el mismo set que
+  // alimenta la expresión del mapa (filtros.ts).
+  const idsIndicador = useMemo(
+    () => pozosConIndicador(indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo),
+    [indicadores, filtros.indicadoresFiltro, filtros.indicadorPeriodo],
+  )
+
   // Conteo de pozos visibles con la misma lógica que la expresión del mapa,
   // para mostrar "132 de 1398" sin consultar el canvas.
   const visibles = useMemo(() => {
     let n = 0
     for (const p of pozos) {
-      if (pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy, diasSinVisita)) n++
+      if (pozoPasaFiltros(p, filtros, instPorId, idsAsignadosHoy, diasSinVisita, idsIndicador)) n++
     }
     return n
-  }, [pozos, filtros, instPorId, idsAsignadosHoy, diasSinVisita])
+  }, [pozos, filtros, instPorId, idsAsignadosHoy, diasSinVisita, idsIndicador])
 
   // Códigos EF/MG disponibles, reactivos al Campo activo: si solo BA está
   // marcado, solo aparecen EF/MG de pozos de BA (y viceversa con VLC/VLG).
@@ -257,6 +271,62 @@ export function PanelFiltros({ abierto, onCerrar }: { abierto: boolean; onCerrar
               onChange={(e) => setFiltros({ sinVisitaDias: Number(e.target.value) || 0 })} /> días
           </label>
         </div>
+      </Seccion>
+
+      <Seccion
+        titulo="Indicadores (historial)"
+        resumen={
+          filtros.indicadoresFiltro.length === 0
+            ? 'Off'
+            : `${filtros.indicadorModo === 'incluir' ? 'Incluir' : 'Excluir'} ${filtros.indicadoresFiltro.length} · ${NOMBRES_PERIODO[filtros.indicadorPeriodo]}`
+        }
+      >
+        <div className="pf-chips">
+          {(Object.keys(NOMBRES_INDICADOR) as Indicador[]).map((ind) => (
+            <Chip
+              key={ind}
+              activo={filtros.indicadoresFiltro.includes(ind)}
+              onClick={() => alternarEn('indicadoresFiltro', ind)}
+            >
+              {NOMBRES_INDICADOR[ind]}
+            </Chip>
+          ))}
+        </div>
+        {filtros.indicadoresFiltro.length > 0 && (
+          <>
+            <div
+              className="pf-estilo-lineas"
+              title="Incluir: solo pozos que tienen alguno de estos indicadores. Excluir: todos menos los que los tienen (ej. 'pozos SIN registro manométrico este año')."
+            >
+              <button
+                type="button"
+                className={filtros.indicadorModo === 'incluir' ? 'pf-estilo-activo' : ''}
+                onClick={() => setFiltros({ indicadorModo: 'incluir' })}
+              >
+                Incluir
+              </button>
+              <button
+                type="button"
+                className={filtros.indicadorModo === 'excluir' ? 'pf-estilo-activo' : ''}
+                onClick={() => setFiltros({ indicadorModo: 'excluir' })}
+              >
+                Excluir
+              </button>
+            </div>
+            <label className="pf-toggle">
+              Período:{' '}
+              <select
+                className="pf-select"
+                value={filtros.indicadorPeriodo}
+                onChange={(e) => setFiltros({ indicadorPeriodo: e.target.value as PeriodoIndicador })}
+              >
+                {(Object.keys(NOMBRES_PERIODO) as PeriodoIndicador[]).map((p) => (
+                  <option key={p} value={p}>{NOMBRES_PERIODO[p]}</option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
       </Seccion>
 
       </div>

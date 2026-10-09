@@ -139,6 +139,15 @@
 }
 .pf-numericos input { width: 70px; flex: 0 0 auto; }
 
+.pf-select {
+  border: 1px solid var(--hud-border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+  background: var(--hud-bg-soft);
+  color: var(--hud-text);
+}
+
 .pf-toggle {
   display: flex;
   align-items: center;

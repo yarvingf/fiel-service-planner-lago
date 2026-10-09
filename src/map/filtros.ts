@@ -43,7 +43,11 @@ function criterioAsignacion(
   return f.asignacionFiltro === 'asignado' ? estaAsignado : ['!', estaAsignado]
 }
 
-export function expresionPozos(f: Filtros, idsAsignados?: ReadonlySet<string> | null): FilterSpecification {
+export function expresionPozos(
+  f: Filtros,
+  idsAsignados?: ReadonlySet<string> | null,
+  idsIndicador?: ReadonlySet<string> | null,
+): FilterSpecification {
   const partes: unknown[] = [
     'all',
     ['in', ['get', 'estatus'], ['literal', f.estatus]],
@@ -58,6 +62,17 @@ export function expresionPozos(f: Filtros, idsAsignados?: ReadonlySet<string> | 
     // Antigüedad de la última visita: 'diasSinVisita' viene aplanado en el
     // GeoJSON (9999 = nunca visitado → pasa cualquier umbral).
     f.sinVisitaDias > 0 ? ['>=', ['get', 'diasSinVisita'], f.sinVisitaDias] : true,
+    // Indicadores del historial (pozo_indicadores): el set se calcula
+    // JS-side sobre la tabla reducida — mismo patrón que idsAsociadas.
+    // Incluir = el pozo está en el set; Excluir = negación. Set ausente:
+    // incluir → nada pasa; excluir → todo pasa (nada que excluir).
+    f.indicadoresFiltro.length > 0
+      ? idsIndicador
+        ? f.indicadorModo === 'excluir'
+          ? ['!', ['in', ['get', 'id'], ['literal', [...idsIndicador]]]]
+          : ['in', ['get', 'id'], ['literal', [...idsIndicador]]]
+        : f.indicadorModo === 'excluir'
+      : true,
   ]
   // El pozo pasa si CUALQUIERA de sus métodos está seleccionado
   // ('metodos' es un string "GL,BES" — 'in' sobre string hace substring,
@@ -97,8 +112,12 @@ function expresionInstalaciones(
  * las líneas llevan las mismas propiedades) Y el tipo de instalación al que
  * conecta (EF/MG) está habilitado en el filtro de instalaciones.
  */
-export function expresionLineas(f: Filtros, idsAsignados?: ReadonlySet<string> | null): FilterSpecification {
-  return ['all', expresionPozos(f, idsAsignados), perteneceA('tipoLinea', f.tiposInst)] as FilterSpecification
+export function expresionLineas(
+  f: Filtros,
+  idsAsignados?: ReadonlySet<string> | null,
+  idsIndicador?: ReadonlySet<string> | null,
+): FilterSpecification {
+  return ['all', expresionPozos(f, idsAsignados, idsIndicador), perteneceA('tipoLinea', f.tiposInst)] as FilterSpecification
 }
 
 export function aplicarFiltros(
@@ -106,8 +125,9 @@ export function aplicarFiltros(
   f: Filtros,
   idsAsignados?: ReadonlySet<string> | null,
   idsInstAsociadas?: ReadonlySet<string> | null,
+  idsIndicador?: ReadonlySet<string> | null,
 ): void {
-  const filtroPozos = expresionPozos(f, idsAsignados)
+  const filtroPozos = expresionPozos(f, idsAsignados, idsIndicador)
   const filtroInst = expresionInstalaciones(f, idsAsignados, idsInstAsociadas)
   for (const capa of [ID_CAPA_POZOS, ID_CAPA_POZOS_ETIQUETAS]) {
     if (map.getLayer(capa)) map.setFilter(capa, filtroPozos)
@@ -115,7 +135,7 @@ export function aplicarFiltros(
   for (const capa of [ID_CAPA_INSTALACIONES, ID_CAPA_INSTALACIONES_ETIQUETAS, ID_CAPA_INST_HALO]) {
     if (map.getLayer(capa)) map.setFilter(capa, filtroInst)
   }
-  const filtroLineas = expresionLineas(f, idsAsignados)
+  const filtroLineas = expresionLineas(f, idsAsignados, idsIndicador)
   // Capa principal: solo el modo "animado" (guión + cabecita). En modo
   // "gradiente" la reemplazan las capas por tipo EF/MG — line-gradient no
   // admite leer 'tipoLinea' del feature, así que cada capa lleva su color

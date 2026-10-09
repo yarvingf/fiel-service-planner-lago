@@ -3,6 +3,7 @@ import type { Cuadrilla } from '@/domain/cuadrilla'
 import type { Instalacion } from '@/domain/instalacion'
 import type { PozoCompletacion, PozoConCompletaciones } from '@/domain/pozo'
 import { ultimaVisitaPorPozo, type VisitaCampo } from '@/domain/visitaCampo'
+import { calcularIndicadores, type IndicadorPozo } from '@/domain/indicadores'
 import type { DiffUniverso, Universo } from './sincronizarUniverso'
 import type { Database } from './database.types'
 
@@ -17,6 +18,8 @@ type InsertCompletacion = Database['public']['Tables']['pozo_completaciones']['I
 type InsertImportCambio = Database['public']['Tables']['import_cambios']['Insert']
 type FilaVisita = Database['public']['Tables']['visitas_campo']['Row']
 type InsertVisita = Database['public']['Tables']['visitas_campo']['Insert']
+type FilaIndicador = Database['public']['Tables']['pozo_indicadores']['Row']
+type InsertIndicador = Database['public']['Tables']['pozo_indicadores']['Insert']
 
 /** Una asignación ya traducida al modelo de la app (fecha en YYYY-MM-DD). */
 export interface AsignacionRemota {
@@ -425,6 +428,41 @@ function visitaAFila(v: VisitaCampo): InsertVisita {
   }
 }
 
+function filaAIndicador(f: FilaIndicador): IndicadorPozo {
+  return {
+    id: f.id,
+    pozoId: f.pozo_id,
+    fecha: f.fecha,
+    indicador: f.indicador as IndicadorPozo['indicador'],
+    valor: f.valor,
+    visitaId: f.visita_id ?? '',
+  }
+}
+
+function indicadorAFila(i: IndicadorPozo, pozoCodigo: string): InsertIndicador {
+  return {
+    id: i.id,
+    pozo_id: i.pozoId,
+    pozo_codigo: pozoCodigo,
+    fecha: i.fecha,
+    indicador: i.indicador,
+    valor: i.valor,
+    visita_id: i.visitaId,
+  }
+}
+
+/**
+ * Tabla reducida de indicadores — a diferencia del historial, SÍ se carga
+ * completa al arranque: son ~miles de filas angostas y es lo que habilita
+ * los filtros por evento sin tocar `visitas_campo`.
+ */
+export async function listarIndicadores(): Promise<IndicadorPozo[]> {
+  const c = cliente()
+  const filas = await obtenerTodo<FilaIndicador>((d, h) =>
+    c.from('pozo_indicadores').select('*', { count: 'exact' }).range(d, h))
+  return filas.map(filaAIndicador)
+}
+
 /** Columnas de visita necesarias para "última visita"/días sin visita — sin datos_extra ni actualizado_en. */
 const COLUMNAS_VISITA_LIGERAS =
   'id,tipo,fecha,pozo_texto,pozo_id,cuadrilla,campo,tipo_actividad,estado_inicial,estado_final,comentarios,hora_inicio,hora_fin'
@@ -608,6 +646,22 @@ export async function aplicarDiffUniverso(
   const visitasUpsert = [...diff.visitasNuevas, ...diff.visitasActualizadas.map((a) => a.nuevo)].map(visitaAFila)
   for (const tanda of enTandas(visitasUpsert, 100)) {
     const { error } = await c.from('visitas_campo').upsert(tanda, { onConflict: 'id' })
+    if (error) throw traducirError(error)
+  }
+
+  // 4b. Reconstrucción de `pozo_indicadores`: es data derivada de TODAS las
+  //     visitas del Excel recién importado, no del diff — se borra y se
+  //     regenera entera (~miles de filas), lo que la hace idempotente ante
+  //     re-imports y ante visitas que dejen de calificar por correcciones.
+  const indicadores = calcularIndicadores(nuevo.visitas)
+  {
+    const { error } = await c.from('pozo_indicadores').delete().not('id', 'is', null)
+    if (error) throw traducirError(error)
+  }
+  const codigoPozo = new Map(nuevo.pozos.map((p) => [p.id, p.codigo] as const))
+  const indInsert = indicadores.map((i) => indicadorAFila(i, codigoPozo.get(i.pozoId) ?? ''))
+  for (const tanda of enTandas(indInsert)) {
+    const { error } = await c.from('pozo_indicadores').insert(tanda)
     if (error) throw traducirError(error)
   }
 

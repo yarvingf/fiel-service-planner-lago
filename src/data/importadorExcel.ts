@@ -23,11 +23,14 @@ import {
 import { esTipoInstalacionConocido, type Instalacion } from '@/domain/instalacion'
 import { coordenadasFueraDeRango, crearAlerta, type AlertaImport } from '@/domain/alertasImport'
 import { claveVisita, type TipoVisita, type VisitaCampo } from '@/domain/visitaCampo'
+import { calcularIndicadores, type IndicadorPozo } from '@/domain/indicadores'
 
 export interface ResultadoImport {
   pozos: PozoConCompletaciones[]
   instalaciones: Instalacion[]
   visitas: VisitaCampo[]
+  /** Proyección reducida de `visitas` para filtrado (tabla pozo_indicadores). */
+  indicadores: IndicadorPozo[]
   alertas: AlertaImport[]
 }
 
@@ -589,5 +592,11 @@ export async function importarExcel(buffer: ArrayBuffer): Promise<ResultadoImpor
     alertasVisitas.push(...r.alertas)
   }
 
-  return { pozos, instalaciones, visitas, alertas: [...alertasInst, ...alertasPozos, ...alertasVisitas] }
+  return {
+    pozos,
+    instalaciones,
+    visitas,
+    indicadores: calcularIndicadores(visitas),
+    alertas: [...alertasInst, ...alertasPozos, ...alertasVisitas],
+  }
 }
