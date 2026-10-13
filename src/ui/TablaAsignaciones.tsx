@@ -26,6 +26,7 @@ import {
   PARSEO_PEGADO as PARSEO,
   type CampoChecklist,
 } from '@/data/portapapelesAsignaciones'
+import { COLORES_ESTATUS } from '@/map/capasMarcadores'
 
 ModuleRegistry.registerModules([AllCommunityModule])
 
@@ -72,6 +73,16 @@ function CeldaToggle(campo: CampoChecklist) {
       </button>
     )
   }
+}
+
+/** Bolita de estatus COA del pozo — mismo color que el marcador del mapa
+ *  (verde/rojo/gris); vacía en instalaciones, que no tienen estatus. */
+function CeldaEstatus(p: ICellRendererParams<FilaGrid>) {
+  const est = p.data?._d?.estatus
+  if (!est) return null
+  return (
+    <span className="ma-est" style={{ background: COLORES_ESTATUS[est] }} title={`Estatus: ${est}`} />
+  )
 }
 
 /** Código del pozo como botón: clic → vuela el mapa hasta el objetivo. */
@@ -256,6 +267,18 @@ export function TablaAsignaciones({
   const columnas = useMemo<ColDef<FilaGrid>[]>(
     () => [
       { headerName: 'Código', colId: 'codigo', field: 'codigo', minWidth: 100, cellRenderer: CeldaCodigo, cellClass: clasesCelda() },
+      {
+        headerName: 'Est.',
+        headerTooltip: 'Estatus COA del pozo (Abierto / Cerrado / Indeterminado)',
+        colId: 'estatus',
+        width: 48,
+        sortable: true,
+        resizable: false,
+        editable: false,
+        valueGetter: (p) => p.data?._d?.estatus ?? '',
+        cellRenderer: CeldaEstatus,
+        cellClass: clasesCelda(),
+      },
       { headerName: 'EF', colId: 'ef', minWidth: 60, valueGetter: detalle('ef'), cellClass: clasesCelda() },
       { headerName: 'MG', colId: 'mg', minWidth: 60, valueGetter: detalle('mg'), cellClass: clasesCelda() },
       { headerName: 'POT', colId: 'pot', width: 62, valueGetter: detalle('pot'), cellStyle: { textAlign: 'right' }, cellClass: clasesCelda() },
