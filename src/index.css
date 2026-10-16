@@ -16,17 +16,17 @@
   --mono: ui-monospace, Consolas, monospace;
 
   /* Paleta del HUD operativo: tema oscuro estilo Google Maps Navigation —
-     tarjetas carbón translúcidas (opacidad ~0.5, texto ~0.75) sobre el
+     tarjetas carbón translúcidas (opacidad ~0.85, texto ~0.85) sobre el
      mapa, acento azul; el color lo aportan los datos (estatus, cuadrillas). */
-  --hud-bg: rgba(31, 33, 38, 0.5);
-  --hud-bg-soft: rgba(38, 40, 46, 0.65);
-  --hud-border: rgba(255, 255, 255, 0.1);
+  --hud-bg: rgba(31, 33, 38, 0.85);
+  --hud-bg-soft: rgba(38, 40, 46, 0.92);
+  --hud-border: rgba(255, 255, 255, 0.14);
   --hud-navy: #4f8bf7;
   --hud-navy-dark: #3568d4;
   --hud-navy-soft: rgba(79, 139, 247, 0.16);
   --hud-hover: rgba(255, 255, 255, 0.07);
-  --hud-text: rgba(232, 234, 237, 0.75);
-  --hud-muted: rgba(154, 160, 166, 0.85);
+  --hud-text: rgba(232, 234, 237, 0.85);
+  --hud-muted: rgba(154, 160, 166, 0.9);
   --hud-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   /* Tarjetas suspendidas sobre el mapa (filtros, plan, detalle, consola). */
   --hud-shadow-float: 0 4px 16px rgba(0, 0, 0, 0.45);

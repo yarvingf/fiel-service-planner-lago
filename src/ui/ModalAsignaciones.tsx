@@ -7,7 +7,7 @@ import { useAuthStore } from '@/state/authStore'
 import { construirDetalleObjetivos } from '@/domain/detalleAsignacion'
 import { formatearFecha } from '@/domain/fecha'
 import { exportarPlanExcel } from '@/data/exportarPlanExcel'
-import { construirMensajeWhatsApp } from '@/data/mensajeWhatsApp'
+import { construirMensajeWhatsApp, type ModoAgrupacionWhatsApp } from '@/data/mensajeWhatsApp'
 import { TablaAsignaciones } from './TablaAsignaciones'
 import type { CamposAsignacion } from '@/data/persistencia'
 import { mapaInstancia } from '@/map/mapaInstancia'
@@ -58,6 +58,8 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
   const [prioridadMulti, setPrioridadMulti] = useState('')
   const [exportando, setExportando] = useState(false)
   const [copiado, setCopiado] = useState(false)
+  const [modalWhatsApp, setModalWhatsApp] = useState(false)
+  const [modoWhatsApp, setModoWhatsApp] = useState<ModoAgrupacionWhatsApp>('todos')
 
   /**
    * Ediciones locales aún no persistidas: id de asignación → campos
@@ -142,6 +144,7 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
     if (!abierto) {
       setMarcados(new Set())
       setPendientes(new Map())
+      setModalWhatsApp(false)
     }
   }
 
@@ -207,14 +210,26 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
     }
   }
 
-  const copiarWhatsApp = async () => {
-    const msg = construirMensajeWhatsApp(fecha, cuadrillas, asignacionesVista, detalleDe)
+  const abrirModalWhatsApp = () => {
+    const tienePozos = asignacionesVista.some(
+      (a) => a.fecha === fecha && a.objetivoId.startsWith('pozo|'),
+    )
+    if (!tienePozos) {
+      window.alert(`No hay pozos asignados para copiar el ${formatearFecha(fecha)}`)
+      return
+    }
+    setModalWhatsApp(true)
+  }
+
+  const generarYCopiarWhatsApp = async () => {
+    const msg = construirMensajeWhatsApp(fecha, cuadrillas, asignacionesVista, detalleDe, modoWhatsApp)
     if (!msg) {
       window.alert(`No hay pozos asignados para copiar el ${formatearFecha(fecha)}`)
       return
     }
     try {
       await navigator.clipboard.writeText(msg)
+      setModalWhatsApp(false)
       setCopiado(true)
       setTimeout(() => setCopiado(false), 2000)
     } catch {
@@ -431,8 +446,8 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
           <button
             type="button"
             className="ma-whatsapp"
-            title="Copia el plan del día como mensaje de WhatsApp (pozos agrupados por campo y MG/EF)"
-            onClick={() => void copiarWhatsApp()}
+            title="Copia el plan del día como mensaje de WhatsApp (elige agrupación por Todos, MGL o EF)"
+            onClick={abrirModalWhatsApp}
           >
             {copiado ? '¡Copiado!' : 'Copiar WhatsApp'}
           </button>
@@ -458,6 +473,67 @@ export function ModalAsignaciones({ abierto, onCerrar }: Props) {
           )}
           <button type="button" className="ma-listo" onClick={() => void cerrar()}>Listo</button>
         </div>
+
+        {modalWhatsApp && (
+          <div className="ma-wa-fondo" onClick={() => setModalWhatsApp(false)}>
+            <div className="ma-wa-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="ma-wa-titulo">
+                Agrupación de Mensaje por...
+                <button
+                  type="button"
+                  className="ma-cerrar"
+                  onClick={() => setModalWhatsApp(false)}
+                  aria-label="Cerrar"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="ma-wa-switch" role="radiogroup" aria-label="Agrupación de mensaje por">
+                {(
+                  [
+                    { id: 'todos', label: 'Todos', desc: 'MGL + EF' },
+                    { id: 'mgl', label: 'MGL', desc: 'Solo Múltiple' },
+                    { id: 'ef', label: 'EF', desc: 'Solo Estación' },
+                  ] as const
+                ).map((op) => {
+                  const activo = modoWhatsApp === op.id
+                  return (
+                    <label
+                      key={op.id}
+                      className={`ma-wa-opcion${activo ? ' ma-wa-opcion-activa' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="modo-whatsapp"
+                        value={op.id}
+                        checked={activo}
+                        onChange={() => setModoWhatsApp(op.id)}
+                      />
+                      <span className="ma-wa-opcion-label">{op.label}</span>
+                      <span className="ma-wa-opcion-desc">{op.desc}</span>
+                    </label>
+                  )
+                })}
+              </div>
+              <div className="ma-wa-botones">
+                <button
+                  type="button"
+                  className="ma-wa-cancelar"
+                  onClick={() => setModalWhatsApp(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="ma-wa-generar"
+                  onClick={() => void generarYCopiarWhatsApp()}
+                >
+                  Generar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <datalist id="ma-actividades">
           {SUGERENCIAS_ACTIVIDAD.map((s) => <option key={s} value={s} />)}

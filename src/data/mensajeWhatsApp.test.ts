@@ -135,4 +135,38 @@ describe('mensajeWhatsApp', () => {
     const msg = construirMensajeWhatsApp(FECHA, [cuad('c1', 'C')], items, detalles)!
     expect(msg).toContain('✓ Actividad por definir a los pozos: *BA 1*')
   })
+
+  it('modo "mgl": agrupa solo por MGL y omite EF de la estructura', () => {
+    const items = [
+      asig({ id: 'a1', objetivoId: 'pozo|p1', codigo: 'BA 1745', actividad: 'Medición' }),
+      asig({ id: 'a2', objetivoId: 'pozo|p2', codigo: 'BA 2711', actividad: 'Medición' }),
+    ]
+    // Mismo MG pero distinto EF → en modo 'mgl' quedan juntos bajo el MG y sin EF
+    const detalles = mapa([
+      ['pozo|p1', det({ metodos: ['GL'], mg: 'BA 1-02', ef: 'EF-BA-17' })],
+      ['pozo|p2', det({ metodos: ['GL'], mg: 'BA 1-02', ef: 'EF-BA-18' })],
+    ])
+    const msg = construirMensajeWhatsApp(FECHA, [cuad('c1', 'C')], items, detalles, 'mgl')!
+    expect(msg).toContain('*`BA 1-02`*')
+    expect(msg).not.toContain('EF-BA-17')
+    expect(msg).not.toContain('EF-BA-18')
+    expect(msg).toContain('✓ Medición a los pozos: *BA 1745*, *BA 2711*')
+  })
+
+  it('modo "ef": agrupa solo por EF y omite MGL de la estructura', () => {
+    const items = [
+      asig({ id: 'a1', objetivoId: 'pozo|p1', codigo: 'BA 1745', actividad: 'Medición' }),
+      asig({ id: 'a2', objetivoId: 'pozo|p2', codigo: 'BA 2711', actividad: 'Medición' }),
+    ]
+    // Mismo EF pero distinto MG → en modo 'ef' quedan juntos bajo la EF y sin MG
+    const detalles = mapa([
+      ['pozo|p1', det({ metodos: ['GL'], mg: 'BA 1-02', ef: 'EF-BA-17' })],
+      ['pozo|p2', det({ metodos: ['GL'], mg: 'BA 1-05', ef: 'EF-BA-17' })],
+    ])
+    const msg = construirMensajeWhatsApp(FECHA, [cuad('c1', 'C')], items, detalles, 'ef')!
+    expect(msg).toContain('*`EF-BA-17`*')
+    expect(msg).not.toContain('BA 1-02')
+    expect(msg).not.toContain('BA 1-05')
+    expect(msg).toContain('✓ Medición a los pozos: *BA 1745*, *BA 2711*')
+  })
 })

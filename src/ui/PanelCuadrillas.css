@@ -15,7 +15,7 @@
   border: 1px solid var(--hud-border);
   border-radius: 10px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-  width: 320px;
+  width: 380px;
   max-height: 78vh;
   display: flex;
   flex-direction: column;
@@ -79,12 +79,12 @@
   margin: 10px 0;
 }
 
-/* Grilla de 3 columnas — el alto lo fija grid-template-rows inline con el
+/* Grilla de 2 columnas — el alto lo fija grid-template-rows inline con el
    máximo de filas entre agrupaciones (ambas quedan del mismo tamaño). */
 .pc-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 5px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
 }
 .pc-grupo-vacia {
   color: var(--hud-muted);
@@ -95,20 +95,20 @@
   text-align: center;
 }
 
-/* Celda-cuadrilla: barra de color arriba, nombre, contador y acciones
-   (aparecen al hover). Click = activar la cuadrilla y cerrar. */
+/* Celda-cuadrilla: punto de color, nombre, contador y acciones siempre
+   visibles (no hay overlay al hover). Click = activar la cuadrilla. */
 .pc-celda {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   border: 1px solid var(--hud-border);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--hud-bg-soft);
   color: var(--hud-text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 0 6px;
+  padding: 0 5px 0 8px;
   cursor: pointer;
   overflow: hidden;
 }
@@ -136,24 +136,35 @@
   flex: 0 0 auto;
 }
 
+/* Acciones dentro de la celda: botones reales, siempre visibles, con
+   área de toque amplia — no dependen del hover y no se confunden con
+   el click de activar la cuadrilla (que es el resto de la celda). */
 .pc-celda-acciones {
-  position: absolute;
-  inset: 0;
-  display: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.pc-celda-x {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  background: rgba(0, 0, 0, 0.72);
-  border-radius: 7px;
-}
-.pc-celda:hover .pc-celda-acciones { display: flex; }
-.pc-celda-x {
+  min-width: 30px;
+  height: 30px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 6px;
+  background: rgba(127, 29, 29, 0.35);
   color: #fca5a5;
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1;
   cursor: pointer;
 }
-.pc-celda-x:hover { color: #f87171; }
+.pc-celda-x:hover {
+  color: #fecaca;
+  background: rgba(185, 28, 28, 0.55);
+  border-color: rgba(248, 113, 113, 0.7);
+}
 
 .pc-error {
   margin-top: 10px;

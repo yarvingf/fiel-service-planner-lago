@@ -36,55 +36,59 @@ export const FUENTE_SATELITE: RasterSourceSpecification = {
   maxzoom: 14,
 }
 
-/**
- * Capa satelital HD: Esri World Imagery (imagery Maxar/aéreo, ~0.3-1 m/px en
- * la costa del Lago de Maracaibo vs. los ~10 m/px de Sentinel-2). Endpoint
- * público REST de ArcGIS Online — uso libre con atribución visible; volúmenes
- * altos piden cuenta ArcGIS según sus ToS, pero para uso interno/regional es
- * práctica estándar. maxzoom 19: encima de eso MapLibre remuestrea el tile.
- */
-const SATELITE_HD_TILES_URL =
-  import.meta.env.VITE_SATELLITE_HD_TILES_URL ??
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-
-const SATELITE_HD_ATRIBUCION = 'Esri, Maxar, Earthstar Geographics'
-
-export const FUENTE_SATELITE_HD: RasterSourceSpecification = {
-  type: 'raster',
-  tiles: [SATELITE_HD_TILES_URL],
-  tileSize: 256,
-  attribution: SATELITE_HD_ATRIBUCION,
-  maxzoom: 19,
-}
-
 export const ID_FUENTE_SATELITE = 'satelite'
 export const ID_CAPA_SATELITE = 'satelite-capa'
-export const ID_FUENTE_SATELITE_HD = 'satelite-hd'
-export const ID_CAPA_SATELITE_HD = 'satelite-hd-capa'
-
-/** Modos de la capa base: vectorial oscuro, satélite Sentinel-2 o satélite HD (Esri). */
-export type ModoBaseMapa = 'vectorial' | 'satelital' | 'satelitalHd'
 
 /**
- * Agrega las fuentes/capas satelitales al estilo ya cargado (vectorial),
- * ocultas por defecto. Se insertan debajo de la primera capa del estilo para
- * que, cuando se muestren, queden como fondo y las etiquetas/vías del
- * vectorial no se vean duplicadas encima (esas se ocultan aparte al activar
- * cualquier modo satélite).
+ * Overlay de referencia (calles + etiquetas) para encimar sobre el satélite:
+ * los "reference layers" públicos de Esri — World Transportation trae las
+ * vías y Boundaries & Places las etiquetas/nombres. Tiles pequeños,
+ * transparentes, pensados exactamente para el modo híbrido. Sin key, con
+ * atribución visible cuando la capa está activa.
+ */
+const REF_CALLES_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'
+const REF_ETIQUETAS_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+const REF_ATRIBUCION = 'Esri'
+
+export const ID_CAPA_REF_CALLES = 'ref-calles'
+export const ID_CAPA_REF_ETIQUETAS = 'ref-etiquetas'
+
+const FUENTES_REF: [string, string, RasterSourceSpecification][] = [
+  ['ref-calles-src', ID_CAPA_REF_CALLES, { type: 'raster', tiles: [REF_CALLES_URL], tileSize: 256, attribution: REF_ATRIBUCION, maxzoom: 19 }],
+  ['ref-etiquetas-src', ID_CAPA_REF_ETIQUETAS, { type: 'raster', tiles: [REF_ETIQUETAS_URL], tileSize: 256, attribution: REF_ATRIBUCION, maxzoom: 19 }],
+]
+
+/** Modos de la capa base: vectorial oscuro o satélite Sentinel-2. */
+export type ModoBaseMapa = 'vectorial' | 'satelital'
+
+/**
+ * Agrega la fuente/capa satelital (oculta, debajo de la primera capa del
+ * estilo para servir de fondo) y las capas de referencia calles/etiquetas
+ * (ocultas, al tope — los marcadores se agregan después y quedan por encima).
  */
 export function agregarFuenteSatelite(map: MaplibreMap): void {
-  const primeraCapa = map.getStyle().layers?.[0]?.id
-  for (const [fuente, capa, spec] of [
-    [ID_FUENTE_SATELITE, ID_CAPA_SATELITE, FUENTE_SATELITE],
-    [ID_FUENTE_SATELITE_HD, ID_CAPA_SATELITE_HD, FUENTE_SATELITE_HD],
-  ] as const) {
-    if (map.getSource(fuente)) continue
-    map.addSource(fuente, spec)
+  if (!map.getSource(ID_FUENTE_SATELITE)) {
+    map.addSource(ID_FUENTE_SATELITE, FUENTE_SATELITE)
+    const primeraCapa = map.getStyle().layers?.[0]?.id
     map.addLayer(
-      { id: capa, type: 'raster', source: fuente, layout: { visibility: 'none' } },
+      { id: ID_CAPA_SATELITE, type: 'raster', source: ID_FUENTE_SATELITE, layout: { visibility: 'none' } },
       primeraCapa,
     )
   }
+  for (const [fuente, capa, spec] of FUENTES_REF) {
+    if (map.getSource(fuente)) continue
+    map.addSource(fuente, spec)
+    map.addLayer({ id: capa, type: 'raster', source: fuente, layout: { visibility: 'none' } })
+  }
+}
+
+/** Enciende/apaga el overlay de calles+etiquetas sobre el satélite. */
+export function aplicarCapaCalles(map: MaplibreMap, visible: boolean): void {
+  const v = visible ? 'visible' : 'none'
+  if (map.getLayer(ID_CAPA_REF_CALLES)) map.setLayoutProperty(ID_CAPA_REF_CALLES, 'visibility', v)
+  if (map.getLayer(ID_CAPA_REF_ETIQUETAS)) map.setLayoutProperty(ID_CAPA_REF_ETIQUETAS, 'visibility', v)
 }
 
 // IDs de TODAS las capas del estilo base (Liberty) capturadas antes de que
@@ -117,18 +121,13 @@ export function aplicarModoBase(map: MaplibreMap, modo: ModoBaseMapa): void {
   if (capasEstiloBase === null) {
     capasEstiloBase = (map.getStyle().layers ?? [])
       .map((l) => l.id)
-      .filter((id) => id !== ID_CAPA_SATELITE && id !== ID_CAPA_SATELITE_HD)
+      .filter((id) => id !== ID_CAPA_SATELITE && id !== ID_CAPA_REF_CALLES && id !== ID_CAPA_REF_ETIQUETAS)
   }
-  // Un satélite visible a la vez; las capas del estilo vectorial se ocultan
-  // en cualquiera de los dos modos satelitales.
-  const esSatelite = modo !== 'vectorial'
-  for (const [capa, activoEn] of [
-    [ID_CAPA_SATELITE, 'satelital'],
-    [ID_CAPA_SATELITE_HD, 'satelitalHd'],
-  ] as const) {
-    if (map.getLayer(capa)) {
-      map.setLayoutProperty(capa, 'visibility', modo === activoEn ? 'visible' : 'none')
-    }
+  // El satélite se ve solo en su modo; las capas del estilo vectorial se
+  // ocultan mientras (la referencia calles/etiquetas se maneja aparte).
+  const esSatelite = modo === 'satelital'
+  if (map.getLayer(ID_CAPA_SATELITE)) {
+    map.setLayoutProperty(ID_CAPA_SATELITE, 'visibility', esSatelite ? 'visible' : 'none')
   }
   for (const id of capasEstiloBase) {
     if (map.getLayer(id)) {

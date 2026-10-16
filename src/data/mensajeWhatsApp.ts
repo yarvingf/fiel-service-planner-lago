@@ -16,29 +16,38 @@ function seccionCampo(campo: DetalleObjetivo['campo']): string {
   return 'Sin campo'
 }
 
+export type ModoAgrupacionWhatsApp = 'todos' | 'mgl' | 'ef'
+
 type NivelActividad = Map<string, AsignacionRec[]>
 type NivelInstalacion = Map<string, NivelActividad>
 type NivelCuadrilla = Map<string, NivelInstalacion>
 
-/** Línea de instalación: MG, 3 espacios, EF — cada uno con su sombra. */
-function lineaInstalacion(mg: string, ef: string): string {
+/** Línea de instalación según modo: ambos (MG + EF), solo MGL o solo EF. */
+function lineaInstalacion(mg: string, ef: string, modo: ModoAgrupacionWhatsApp): string {
+  if (modo === 'mgl') return sombra(mg || 'Sin MGL asociado')
+  if (modo === 'ef') return sombra(ef || 'Sin EF asociado')
   if (mg && ef) return `${sombra(mg)}   ${sombra(ef)}`
   if (mg || ef) return sombra(mg || ef)
   return sombra('Sin EF/MG asociado')
 }
 
 /**
- * Nivel de agrupación bajo la cuadrilla. El par MG/EF solo aplica a pozos
- * GL y NF (son los que dependen de múltiple de gas / estación de flujo);
- * pozos de otros métodos se agrupan bajo el nombre del método — "BES",
- * "BM", "BCP" — tal como se comunican los planes de revisión.
+ * Nivel de agrupación bajo la cuadrilla. El par MG/EF (o solo MGL / solo EF
+ * según `modo`) aplica a pozos GL y NF (son los que dependen de múltiple de
+ * gas / estación de flujo); pozos de otros métodos se agrupan bajo el nombre
+ * del método — "BES", "BM", "BCP" — tal como se comunican los planes de revisión.
  */
-function grupoDe(d: DetalleObjetivo | undefined): { clave: string; etiqueta: string } {
+function grupoDe(
+  d: DetalleObjetivo | undefined,
+  modo: ModoAgrupacionWhatsApp,
+): { clave: string; etiqueta: string } {
   const metodos = d?.metodos ?? []
   const usaMgEf = metodos.length === 0 || metodos.some((m) => m === 'GL' || m === 'NF')
   if (usaMgEf) {
-    const clave = `mg|${d?.mg ?? ''}|${d?.ef ?? ''}`
-    return { clave, etiqueta: lineaInstalacion(d?.mg ?? '', d?.ef ?? '') }
+    const mg = modo === 'ef' ? '' : (d?.mg ?? '')
+    const ef = modo === 'mgl' ? '' : (d?.ef ?? '')
+    const clave = `mg|${mg}|${ef}`
+    return { clave, etiqueta: lineaInstalacion(mg, ef, modo) }
   }
   const clave = `metodo|${metodos.join('+')}`
   return { clave, etiqueta: sombra(metodos.join('   ')) }
@@ -67,6 +76,7 @@ export function construirMensajeWhatsApp(
   cuadrillas: readonly Cuadrilla[],
   asignaciones: readonly AsignacionRec[],
   detalleDe: ReadonlyMap<string, DetalleObjetivo>,
+  modo: ModoAgrupacionWhatsApp = 'todos',
 ): string | null {
   const delDia = asignaciones.filter(
     (a) => a.fecha === fecha && a.objetivoId.startsWith('pozo|'),
@@ -75,14 +85,14 @@ export function construirMensajeWhatsApp(
 
   const nombreCuadrilla = new Map(cuadrillas.map((c) => [c.id, c.nombre]))
 
-  // La llave de instalación es el PAR (mg, ef): un pozo pertenece a ambos.
+  // La llave de instalación depende del modo: par (mg, ef), solo mg o solo ef.
   const arbol = new Map<string, NivelCuadrilla>()
   const etiquetaInst = new Map<string, string>()
   for (const a of delDia) {
     const d = detalleDe.get(a.objetivoId)
     const campo = seccionCampo(d?.campo ?? null)
     const cuadrilla = nombreCuadrilla.get(a.cuadrillaId) ?? 'Sin cuadrilla'
-    const g = grupoDe(d)
+    const g = grupoDe(d, modo)
     const inst = g.clave
     etiquetaInst.set(inst, g.etiqueta)
     const act = a.actividad?.trim() || 'Actividad por definir'

@@ -43,6 +43,33 @@
   color: #ffffff;
 }
 
+/* Toggle del overlay de calles/etiquetas — junto al selector de vista. */
+.mapa-boton-calles {
+  position: absolute;
+  bottom: 86px;
+  left: 156px;
+  z-index: 1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-bg);
+  color: var(--hud-muted);
+  cursor: pointer;
+  box-shadow: var(--hud-shadow-float);
+}
+.mapa-boton-calles:hover {
+  background: var(--hud-navy-soft);
+  color: var(--hud-text);
+}
+.mapa-boton-calles.mapa-base-activo {
+  background: var(--hud-navy);
+  border-color: var(--hud-navy);
+  color: #ffffff;
+}
+
 
 
 .mapa-atribucion-satelite {

@@ -330,3 +330,111 @@
 }
 .ma-aplicar:hover { background: #b45309; }
 .ma-aplicar:disabled { opacity: 0.55; cursor: default; }
+
+/* Sub-modal de agrupación para mensaje de WhatsApp ("Todos" / "MGL" / "EF"). */
+.ma-wa-fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 70;
+}
+
+.ma-wa-modal {
+  background: var(--hud-bg);
+  color: var(--hud-text);
+  border: 1px solid var(--hud-border);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  width: 340px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ma-wa-titulo {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--hud-text);
+}
+
+.ma-wa-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.ma-wa-opcion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 9px 6px;
+  border: 1px solid var(--hud-border);
+  border-radius: 8px;
+  background: var(--hud-bg-soft);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.12s, background 0.12s;
+}
+.ma-wa-opcion:hover {
+  border-color: var(--hud-muted);
+}
+.ma-wa-opcion input[type='radio'] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.ma-wa-opcion-activa {
+  border-color: var(--hud-navy);
+  background: var(--hud-navy-soft);
+  box-shadow: 0 0 0 1px var(--hud-navy);
+}
+.ma-wa-opcion-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--hud-text);
+}
+.ma-wa-opcion-activa .ma-wa-opcion-label {
+  color: var(--hud-navy);
+}
+.ma-wa-opcion-desc {
+  font-size: 10px;
+  color: var(--hud-muted);
+}
+
+.ma-wa-botones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+.ma-wa-cancelar {
+  border: 1px solid var(--hud-border);
+  background: var(--hud-bg-soft);
+  color: var(--hud-text);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ma-wa-cancelar:hover { background: var(--hud-hover); }
+.ma-wa-generar {
+  border: 1px solid var(--hud-navy);
+  background: var(--hud-navy);
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ma-wa-generar:hover { background: var(--hud-navy-dark); }

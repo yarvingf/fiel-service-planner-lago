@@ -78,7 +78,7 @@ export function PanelCuadrillas({ abierto, onCerrar }: Props) {
   // agrupación más poblada (celdas vacías de la otra quedan como espacio).
   const filas = Math.max(
     1,
-    ...[...Object.values(grupos), otras].map((g) => Math.ceil(g.length / 3)),
+    ...[...Object.values(grupos), otras].map((g) => Math.ceil(g.length / 2)),
   )
 
   const crear = async () => {
@@ -120,32 +120,34 @@ export function PanelCuadrillas({ abierto, onCerrar }: Props) {
         <span className="pc-celda-color" style={{ background: c.color }} />
         <span className="pc-celda-nombre">{c.nombre}</span>
         <span className="pc-celda-n">{asignadas || ''}</span>
-        <span className="pc-celda-acciones">
-          {puedeEditar && asignadas > 0 && (
+        {puedeEditar && (
+          <span className="pc-celda-acciones">
+            {asignadas > 0 && (
+              <span
+                className="pc-celda-x"
+                title={`Desasignar sus ${asignadas} objetivos del ${formatearFecha(fecha)}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (window.confirm(`¿Desasignar los ${asignadas} objetivos de "${c.nombre}" del ${formatearFecha(fecha)}?`))
+                    void desasignarCuadrilla(c.id)
+                }}
+              >
+                ⌫
+              </span>
+            )}
             <span
               className="pc-celda-x"
-              title={`Desasignar sus ${asignadas} objetivos del ${formatearFecha(fecha)}`}
+              title="Archivar cuadrilla (su historial se conserva)"
               onClick={(e) => {
                 e.stopPropagation()
-                if (window.confirm(`¿Desasignar los ${asignadas} objetivos de "${c.nombre}" del ${formatearFecha(fecha)}?`))
-                  void desasignarCuadrilla(c.id)
+                if (window.confirm(`¿Eliminar la cuadrilla "${c.nombre}"? Quedará archivada y sus asignaciones históricas se conservan.`))
+                  void quitarCuadrilla(c.id)
               }}
             >
-              ⌫
+              ×
             </span>
-          )}
-          {puedeEditar && <span
-            className="pc-celda-x"
-            title="Archivar cuadrilla (su historial se conserva)"
-            onClick={(e) => {
-              e.stopPropagation()
-              if (window.confirm(`¿Eliminar la cuadrilla "${c.nombre}"? Quedará archivada y sus asignaciones históricas se conservan.`))
-                void quitarCuadrilla(c.id)
-            }}
-          >
-            ×
-          </span>}
-        </span>
+          </span>
+        )}
       </button>
     )
   }
@@ -153,7 +155,7 @@ export function PanelCuadrillas({ abierto, onCerrar }: Props) {
   const grupo = (titulo: string, lista: Cuadrilla[]) => (
     <div className="pc-grupo">
       <div className="pc-grupo-titulo">{titulo}</div>
-      <div className="pc-grid" style={{ gridTemplateRows: `repeat(${filas}, 34px)` }}>
+      <div className="pc-grid" style={{ gridTemplateRows: `repeat(${filas}, 42px)` }}>
         {lista.length === 0 && <span className="pc-grupo-vacia">—</span>}
         {lista.map(celda)}
       </div>

@@ -3,7 +3,7 @@ import Map, { NavigationControl, ScaleControl, type MapRef } from 'react-map-gl/
 import { setWorkerUrl, type MapLayerMouseEvent } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { agregarFuenteSatelite, aplicarModoBase, limpiarCapasIrrelevantes, ESTILO_VECTORIAL_URL, type ModoBaseMapa } from './estilos'
+import { agregarFuenteSatelite, aplicarModoBase, aplicarCapaCalles, limpiarCapasIrrelevantes, ESTILO_VECTORIAL_URL, type ModoBaseMapa } from './estilos'
 import { agregarCapasMarcadores, actualizarDatosMarcadores, aplicarColorPor, ID_CAPA_POZOS, ID_CAPA_INSTALACIONES } from './capasMarcadores'
 import { conectarTooltip, conectarSeleccion } from './tooltip'
 import { aplicarFiltros } from './filtros'
@@ -26,7 +26,6 @@ type ModoBase = ModoBaseMapa
 const OPCIONES_BASE: { modo: ModoBase; etiqueta: string }[] = [
   { modo: 'vectorial', etiqueta: 'Mapa' },
   { modo: 'satelital', etiqueta: 'Satélite' },
-  { modo: 'satelitalHd', etiqueta: 'HD' },
 ]
 
 /**
@@ -42,7 +41,9 @@ setWorkerUrl(maplibreWorkerUrl)
 
 export function MapaBase() {
   const mapRef = useRef<MapRef | null>(null)
-  const [modoBase, setModoBase] = useState<ModoBase>('satelitalHd')
+  const [modoBase, setModoBase] = useState<ModoBase>('satelital')
+  /** Overlay de calles/etiquetas (Esri reference) sobre el satélite — opcional. */
+  const [mostrarCalles, setMostrarCalles] = useState(false)
   const [mapaListo, setMapaListo] = useState(false)
   const [menuContextual, setMenuContextual] = useState<PosMenuContextual | null>(null)
 
@@ -105,7 +106,7 @@ export function MapaBase() {
     // el lago, generan warnings de sprites ausentes). Antes de aplicarModoBase
     // para que no queden capturadas en capasEstiloBase.
     limpiarCapasIrrelevantes(map)
-    aplicarModoBase(map, 'satelitalHd')
+    aplicarModoBase(map, 'satelital')
     agregarCapasMarcadores(map)
     agregarCapasRuta(map)
     conectarTooltip(map)
@@ -255,6 +256,15 @@ export function MapaBase() {
     setModoBase(nuevo)
   }, [])
 
+  const alternarCalles = useCallback(() => {
+    setMostrarCalles((v) => {
+      const nuevo = !v
+      const map = mapRef.current?.getMap()
+      if (map) aplicarCapaCalles(map, nuevo)
+      return nuevo
+    })
+  }, [])
+
   return (
     <div className="mapa-contenedor">
       <Map
@@ -278,11 +288,9 @@ export function MapaBase() {
             type="button"
             className={modoBase === modo ? 'mapa-base-activo' : ''}
             title={
-              modo === 'satelitalHd'
-                ? 'Satélite HD (Esri/Maxar): máxima resolución disponible en el lago'
-                : modo === 'satelital'
-                  ? 'Satélite Sentinel-2 (~10 m/px): útil si el HD no carga'
-                  : 'Mapa vectorial oscuro, sin imagen'
+              modo === 'satelital'
+                ? 'Satélite Sentinel-2 (~10 m/px)'
+                : 'Mapa vectorial oscuro, sin imagen'
             }
             onClick={() => cambiarModoBase(modo)}
           >
@@ -291,11 +299,20 @@ export function MapaBase() {
         ))}
       </div>
 
-      {modoBase !== 'vectorial' && (
+      {modoBase === 'satelital' && (
+        <button
+          type="button"
+          className={`mapa-boton-calles${mostrarCalles ? ' mapa-base-activo' : ''}`}
+          title="Encima calles y nombres sobre la imagen satelital (referencia Esri)"
+          onClick={alternarCalles}
+        >
+          ⛨ Calles
+        </button>
+      )}
+
+      {modoBase === 'satelital' && (
         <div className="mapa-atribucion-satelite">
-          {modoBase === 'satelitalHd'
-            ? 'Esri, Maxar, Earthstar Geographics'
-            : 'EOxCloudless — Copernicus Sentinel data'}
+          EOxCloudless — Copernicus Sentinel data{mostrarCalles ? ' · Esri (calles)' : ''}
         </div>
       )}
 
